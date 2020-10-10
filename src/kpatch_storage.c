@@ -10,13 +10,13 @@
 #include <sys/wait.h>
 #include <gelf.h>
 
-#include "kpatch_storage.h"
-#include "kpatch_file.h"
-#include "kpatch_common.h"
-#include "kpatch_elf.h"
-#include "kpatch_ptrace.h"
-#include "list.h"
-#include "kpatch_log.h"
+#include "include/kpatch_storage.h"
+#include "include/kpatch_file.h"
+#include "include/kpatch_common.h"
+#include "include/kpatch_elf.h"
+#include "include/kpatch_ptrace.h"
+#include "include/list.h"
+#include "include/kpatch_log.h"
 
 
 /*****************************************************************************

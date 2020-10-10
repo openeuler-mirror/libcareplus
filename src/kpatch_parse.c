@@ -1,8 +1,8 @@
 #include <stdlib.h>
 
-#include "kpatch_log.h"
-#include "kpatch_parse.h"
-#include "kpatch_flags.h"
+#include "include/kpatch_log.h"
+#include "include/kpatch_parse.h"
+#include "include/kpatch_flags.h"
 
 char *cline(struct kp_file *f, int l)
 {

@@ -15,10 +15,10 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 
-#include "kpatch_process.h"
-#include "kpatch_common.h"
-#include "kpatch_ptrace.h"
-#include "kpatch_log.h"
+#include "include/kpatch_process.h"
+#include "include/kpatch_common.h"
+#include "include/kpatch_ptrace.h"
+#include "include/kpatch_log.h"
 
 #include <gelf.h>
 

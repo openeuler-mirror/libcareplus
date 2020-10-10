@@ -4,10 +4,10 @@
 #include <stdarg.h>
 #include <getopt.h>
 
-#include "kpatch_log.h"
-#include "kpatch_parse.h"
-#include "kpatch_dbgfilter.h"
-#include "kpatch_flags.h"
+#include "include/kpatch_log.h"
+#include "include/kpatch_parse.h"
+#include "include/kpatch_dbgfilter.h"
+#include "include/kpatch_flags.h"
 
 #define OS_RHEL5 1
 #define OS_RHEL6 2

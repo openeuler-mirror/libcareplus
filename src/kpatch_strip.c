@@ -7,13 +7,13 @@
 #include <string.h>
 #include <stdint.h>
 #include <getopt.h>
-#include "kpatch_file.h"
-#include "kpatch_common.h"
+#include "include/kpatch_file.h"
+#include "include/kpatch_common.h"
 
 #include <gelf.h>
-#include "kpatch_elf_objinfo.h"
+#include "include/kpatch_elf_objinfo.h"
 
-#include "kpatch_log.h"
+#include "include/kpatch_log.h"
 
 #define ALIGN(off,sz) (((off)+(sz)-1)&~((sz)-1))
 

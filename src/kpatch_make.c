@@ -9,7 +9,7 @@
 #include <errno.h>
 #include <time.h>
 
-#include "kpatch_file.h"
+#include "include/kpatch_file.h"
 
 #define ALIGN(x, align)	((x + align - 1) & (~(align - 1)))
 

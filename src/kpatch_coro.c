@@ -8,12 +8,12 @@
 
 #include <asm/prctl.h>
 
-#include "kpatch_user.h"
-#include "kpatch_coro.h"
-#include "kpatch_common.h"
-#include "kpatch_elf.h"
-#include "kpatch_ptrace.h"
-#include "kpatch_log.h"
+#include "include/kpatch_user.h"
+#include "include/kpatch_coro.h"
+#include "include/kpatch_common.h"
+#include "include/kpatch_elf.h"
+#include "include/kpatch_ptrace.h"
+#include "include/kpatch_log.h"
 
 /* Indicates that the next CORO flavours should be tried */
 #define CORO_SEARCH_NEXT	(1<<31)

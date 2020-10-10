@@ -16,15 +16,15 @@
 #include <libunwind.h>
 #include <libunwind-ptrace.h>
 
-#include "kpatch_user.h"
-#include "kpatch_storage.h"
-#include "kpatch_patch.h"
-#include "kpatch_process.h"
-#include "kpatch_file.h"
-#include "kpatch_common.h"
-#include "kpatch_elf.h"
-#include "list.h"
-#include "kpatch_log.h"
+#include "include/kpatch_user.h"
+#include "include/kpatch_storage.h"
+#include "include/kpatch_patch.h"
+#include "include/kpatch_process.h"
+#include "include/kpatch_file.h"
+#include "include/kpatch_common.h"
+#include "include/kpatch_elf.h"
+#include "include/list.h"
+#include "include/kpatch_log.h"
 
 /* Global variables */
 static char storage_dir[PATH_MAX] = "/var/lib/libcare";

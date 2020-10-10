@@ -23,13 +23,13 @@
 
 #include <sys/socket.h>
 
-#include "kpatch_process.h"
-#include "kpatch_file.h"
-#include "kpatch_common.h"
-#include "kpatch_elf.h"
-#include "kpatch_ptrace.h"
-#include "list.h"
-#include "kpatch_log.h"
+#include "include/kpatch_process.h"
+#include "include/kpatch_file.h"
+#include "include/kpatch_common.h"
+#include "include/kpatch_elf.h"
+#include "include/kpatch_ptrace.h"
+#include "include/list.h"
+#include "include/kpatch_log.h"
 
 /*
  * Locks process by opening /proc/<pid>/maps
