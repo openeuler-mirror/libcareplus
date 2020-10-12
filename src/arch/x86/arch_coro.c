@@ -15,6 +15,29 @@
 #include "include/kpatch_ptrace.h"
 #include "include/kpatch_log.h"
 
+int get_ptr_guard(struct kpatch_process *proc,
+			 unsigned long *ptr_guard)
+{
+	int ret;
+	unsigned long tls;
+
+	ret = kpatch_arch_prctl_remote(proc2pctx(proc), ARCH_GET_FS, &tls);
+	if (ret < 0) {
+		kpdebug("FAIL. Can't get TLS base value\n");
+		return -1;
+	}
+	ret = kpatch_process_mem_read(proc,
+				      tls + GLIBC_TLS_PTR_GUARD,
+				      ptr_guard,
+				      sizeof(*ptr_guard));
+	if (ret < 0) {
+		kpdebug("FAIL. Can't get pointer guard value\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 int _UCORO_access_reg(unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val,
 		      int write, void *arg)
 {

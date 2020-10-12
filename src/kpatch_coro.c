@@ -105,8 +105,6 @@ kpatch_coro_free(struct kpatch_coro *c)
 #define JB_RSP 6
 #define JB_RIP 7
 
-#define GLIBC_TLS_PTR_GUARD 0x30
-
 #define STACK_OFFSET_UC_LINK (2 * sizeof(long))
 #define STACK_OFFSET_START_CONTEXT (3 * sizeof(long))
 #define STACK_OFFSET_UC_LINK_PTR (4 * sizeof(long))
@@ -189,29 +187,6 @@ static int is_test_target(struct kpatch_process *proc,
 			  const char *procname)
 {
 	return strcmp(proc->comm, procname) == 0;
-}
-
-static int get_ptr_guard(struct kpatch_process *proc,
-			 unsigned long *ptr_guard)
-{
-	int ret;
-	unsigned long tls;
-
-	ret = kpatch_arch_prctl_remote(proc2pctx(proc), ARCH_GET_FS, &tls);
-	if (ret < 0) {
-		kpdebug("FAIL. Can't get TLS base value\n");
-		return -1;
-	}
-	ret = kpatch_process_mem_read(proc,
-				      tls + GLIBC_TLS_PTR_GUARD,
-				      ptr_guard,
-				      sizeof(*ptr_guard));
-	if (ret < 0) {
-		kpdebug("FAIL. Can't get pointer guard value\n");
-		return -1;
-	}
-
-	return 0;
 }
 
 int is_centos7_qemu(struct kpatch_process *proc)

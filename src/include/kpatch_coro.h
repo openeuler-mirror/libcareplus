@@ -30,6 +30,11 @@ struct UCORO_info {
 int _UCORO_access_reg(unw_addr_space_t as, unw_regnum_t reg,
 					unw_word_t *val, int write, void *arg);
 
+#define GLIBC_TLS_PTR_GUARD 0x30
+int get_ptr_guard(struct kpatch_process *proc,
+					unsigned long *ptr_guard);
+
+
 int kpatch_coroutines_init(struct kpatch_process *proc);
 int kpatch_coroutines_find(struct kpatch_process *proc);
 void kpatch_coroutines_free(struct kpatch_process *proc);
