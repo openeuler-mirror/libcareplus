@@ -22,6 +22,93 @@
 
 #include <gelf.h>
 
+int
+kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
+			   const unsigned char *code,
+			   size_t codelen,
+			   struct user_regs_struct *pregs,
+			   int (*func)(struct kpatch_ptrace_ctx *pctx,
+				       void *data),
+			   void *data)
+{
+	struct user_regs_struct orig_regs, regs;
+	struct iovec orig_regs_iov, regs_iov;
+
+	orig_regs_iov.iov_base = &orig_regs;
+	orig_regs_iov.iov_len = sizeof(orig_regs);
+	regs_iov.iov_base = &regs;
+	regs_iov.iov_len = sizeof(regs);
+
+	unsigned char orig_code[codelen];
+	int ret;
+	kpatch_process_t *proc = pctx->proc;
+	unsigned long libc_base = proc->libc_base;
+
+
+	ret = ptrace(PTRACE_GETREGSET, pctx->pid, (void*)NT_PRSTATUS, (void*)&orig_regs_iov);
+	if (ret < 0) {
+		kplogerror("can't get regs - %d\n", pctx->pid);
+		return -1;
+	}
+	ret = kpatch_process_mem_read(
+			      proc,
+			      libc_base,
+			      (unsigned long *)orig_code,
+			      codelen);
+	if (ret < 0) {
+		kplogerror("can't peek original code - %d\n", pctx->pid);
+		return -1;
+	}
+	ret = kpatch_process_mem_write(
+			      proc,
+			      (unsigned long *)code,
+			      libc_base,
+			      codelen);
+	if (ret < 0) {
+		kplogerror("can't poke syscall code - %d\n", pctx->pid);
+		goto poke_back;
+	}
+
+	regs = orig_regs;
+	regs.pc = libc_base;
+
+	copy_regs(&regs, pregs);
+
+	ret = ptrace(PTRACE_SETREGSET, pctx->pid, (void*)NT_PRSTATUS, (void*)&regs_iov);
+	if (ret < 0) {
+		kplogerror("can't set regs - %d\n", pctx->pid);
+		goto poke_back;
+	}
+
+	ret = func(pctx, data);
+	if (ret < 0) {
+		kplogerror("failed call to func\n");
+		goto poke_back;
+	}
+
+	ret = ptrace(PTRACE_GETREGSET, pctx->pid, (void*)NT_PRSTATUS, (void*)&regs_iov);
+	if (ret < 0) {
+		kplogerror("can't get updated regs - %d\n", pctx->pid);
+		goto poke_back;
+	}
+
+	ret = ptrace(PTRACE_SETREGSET, pctx->pid, (void*)NT_PRSTATUS, (void*)&orig_regs_iov);
+	if (ret < 0) {
+		kplogerror("can't restore regs - %d\n", pctx->pid);
+		goto poke_back;
+	}
+
+	*pregs = regs;
+
+poke_back:
+	kpatch_process_mem_write(
+			proc,
+			(unsigned long *)orig_code,
+			libc_base,
+			codelen);
+	return ret;
+}
+
 void copy_regs(struct user_regs_struct *dst,
 		      struct user_regs_struct *src)
 {

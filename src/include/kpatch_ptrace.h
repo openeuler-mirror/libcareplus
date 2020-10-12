@@ -125,4 +125,13 @@ kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
 void copy_regs(struct user_regs_struct *dst,
 		      struct user_regs_struct *src);
 
+int
+kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
+			   const unsigned char *code,
+			   size_t codelen,
+			   struct user_regs_struct *pregs,
+			   int (*func)(struct kpatch_ptrace_ctx *pctx,
+				       void *data),
+			   void *data);
+
 #endif

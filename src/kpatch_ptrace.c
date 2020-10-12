@@ -413,86 +413,6 @@ poke_back:
 	return ret;
 }
 
-static
-int
-kpatch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
-			   const unsigned char *code,
-			   size_t codelen,
-			   struct user_regs_struct *pregs,
-			   int (*func)(struct kpatch_ptrace_ctx *pctx,
-				       void *data),
-			   void *data)
-{
-	struct user_regs_struct orig_regs, regs;
-	unsigned char orig_code[codelen];
-	int ret;
-	kpatch_process_t *proc = pctx->proc;
-	unsigned long libc_base = proc->libc_base;
-
-	ret = ptrace(PTRACE_GETREGS, pctx->pid, NULL, &orig_regs);
-	if (ret < 0) {
-		kplogerror("can't get regs - %d\n", pctx->pid);
-		return -1;
-	}
-	ret = kpatch_process_mem_read(
-			      proc,
-			      libc_base,
-			      (unsigned long *)orig_code,
-			      codelen);
-	if (ret < 0) {
-		kplogerror("can't peek original code - %d\n", pctx->pid);
-		return -1;
-	}
-	ret = kpatch_process_mem_write(
-			      proc,
-			      (unsigned long *)code,
-			      libc_base,
-			      codelen);
-	if (ret < 0) {
-		kplogerror("can't poke syscall code - %d\n", pctx->pid);
-		goto poke_back;
-	}
-
-	regs = orig_regs;
-	regs.rip = libc_base;
-
-	copy_regs(&regs, pregs);
-
-	ret = ptrace(PTRACE_SETREGS, pctx->pid, NULL, &regs);
-	if (ret < 0) {
-		kplogerror("can't set regs - %d\n", pctx->pid);
-		goto poke_back;
-	}
-
-	ret = func(pctx, data);
-	if (ret < 0) {
-		kplogerror("failed call to func\n");
-		goto poke_back;
-	}
-
-	ret = ptrace(PTRACE_GETREGS, pctx->pid, NULL, &regs);
-	if (ret < 0) {
-		kplogerror("can't get updated regs - %d\n", pctx->pid);
-		goto poke_back;
-	}
-
-	ret = ptrace(PTRACE_SETREGS, pctx->pid, NULL, &orig_regs);
-	if (ret < 0) {
-		kplogerror("can't restore regs - %d\n", pctx->pid);
-		goto poke_back;
-	}
-
-	*pregs = regs;
-
-poke_back:
-	kpatch_process_mem_write(
-			proc,
-			(unsigned long *)orig_code,
-			libc_base,
-			codelen);
-	return ret;
-}
-
 static int
 wait_for_stop(struct kpatch_ptrace_ctx *pctx,
 	      void *data)
@@ -592,7 +512,7 @@ kpatch_execute_remote(struct kpatch_ptrace_ctx *pctx,
 		      size_t codelen,
 		      struct user_regs_struct *pregs)
 {
-	return kpatch_execute_remote_func(pctx,
+	return kpatch_arch_execute_remote_func(pctx,
 					  code,
 					  codelen,
 					  pregs,
