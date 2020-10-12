@@ -82,6 +82,8 @@ static struct {
 	{ DIRECTIVE_SUBSECTION, ".subsection"},
 
 	{ DIRECTIVE_GLOBL, ".globl"},
+	{ DIRECTIVE_GLOBL, ".global"},
+
 	{ DIRECTIVE_LOCAL, ".local"},
 	{ DIRECTIVE_HIDDEN, ".hidden"},
 	{ DIRECTIVE_PROTECTED, ".protected"},
