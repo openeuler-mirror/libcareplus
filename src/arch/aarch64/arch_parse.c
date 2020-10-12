@@ -4,6 +4,38 @@
 #include "include/kpatch_parse.h"
 #include "include/kpatch_flags.h"
 
+int is_function_start(struct kp_file *f, int l, kpstr_t *nm)
+{
+	char *s;
+	kpstr_t nm2, attr;
+	int l0 = l, func = 0;
+
+	kpstrset(nm, "", 0);
+	for (; l < f->nr_lines; l++) {
+		if (l != l0 && cline(f, l)[0] == '\0')
+			continue;
+		if ((is_sect_cmd(f, l) && is_code_sect(csect(f, l))) ||
+		    ctype(f, l) == DIRECTIVE_ALIGN)
+		       continue;
+		get_type_args(cline(f, l), &nm2, &attr);
+		if ((ctype(f, l) == DIRECTIVE_WEAK && l0 != l) ||
+		     ctype(f, l) == DIRECTIVE_GLOBL || ctype(f, l) == DIRECTIVE_HIDDEN ||
+		     ctype(f, l) == DIRECTIVE_PROTECTED || ctype(f, l) == DIRECTIVE_INTERNAL ||
+		    (ctype(f, l) == DIRECTIVE_TYPE && !kpstrcmpz(&attr, "%function"))) {
+			s = cline(f, l);
+			get_token(&s, &nm2);	/* skip command */
+			get_token(&s, &nm2);
+			if (nm->l && kpstrcmp(nm, &nm2))	/* verify name matches in all .weak/.globl/.type commands */
+				return 0;
+			*nm = nm2;
+			func = func ? 1 : ctype(f, l) == DIRECTIVE_TYPE;
+			continue;
+		}
+		break;
+	}
+	return func;
+}
+
 int is_data_def(char *s, int type)
 {
 	kpstr_t t;
