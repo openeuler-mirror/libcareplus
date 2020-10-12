@@ -25,4 +25,6 @@ struct unpatch_data {
 int process_patch(int pid, void *_data);
 int process_unpatch(int pid, void *_data);
 
+int patch_apply_hunk(struct object_file *o, size_t nhunk);
+
 #endif

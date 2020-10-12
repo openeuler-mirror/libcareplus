@@ -270,47 +270,6 @@ patch_ensure_safety(struct object_file *o,
 /*****************************************************************************
  * Patch application subroutines
  ****************************************************************************/
-/*
- * This flag is local, i.e. it is never stored to the
- * patch applied to patient's memory.
- */
-#define PATCH_APPLIED	(1 << 31)
-
-#define HUNK_SIZE 5
-
-static int
-patch_apply_hunk(struct object_file *o, size_t nhunk)
-{
-	int ret;
-	char code[HUNK_SIZE] = {0xe9, 0x00, 0x00, 0x00, 0x00}; /* jmp IMM */
-	struct kpatch_info *info = &o->info[nhunk];
-	unsigned long pundo;
-
-	if (is_new_func(info))
-		return 0;
-
-	pundo = o->kpta + o->kpfile.patch->user_undo + nhunk * HUNK_SIZE;
-	kpinfo("%s origcode from 0x%lx+0x%x to 0x%lx\n",
-	       o->name, info->daddr, HUNK_SIZE, pundo);
-	ret = kpatch_process_memcpy(o->proc, pundo,
-				    info->daddr, HUNK_SIZE);
-	if (ret < 0)
-		return ret;
-
-	kpinfo("%s hunk 0x%lx+0x%x -> 0x%lx+0x%x\n",
-	       o->name, info->daddr, info->dlen, info->saddr, info->slen);
-	*(unsigned int *)(code + 1) = (unsigned int)(info->saddr - info->daddr - 5);
-	ret = kpatch_process_mem_write(o->proc,
-				       code,
-				       info->daddr,
-				       sizeof(code));
-	/*
-	 * NOTE(pboldin): This is only stored locally, as information have
-	 * been copied to patient's memory already.
-	 */
-	info->flags |= PATCH_APPLIED;
-	return ret ? -1 : 0;
-}
 
 static int
 duplicate_kp_file(struct object_file *o)
@@ -327,6 +286,9 @@ duplicate_kp_file(struct object_file *o)
 
 	return 0;
 }
+
+extern int PATCH_APPLIED;
+extern int HUNK_SIZE;
 
 static int
 object_apply_patch(struct object_file *o)
