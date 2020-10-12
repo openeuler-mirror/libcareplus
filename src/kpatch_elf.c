@@ -677,8 +677,8 @@ kpatch_resolve_undefined(struct object_file *obj,
 		addr = vaddr2addr(o, addr);
 
 		if (type == STT_GNU_IFUNC)
-			if (kpatch_ptrace_resolve_ifunc(proc2pctx(obj->proc), &addr) < 0)
-				kpfatalerror("kpatch_ptrace_resolve_ifunc failed\n");
+			if (kpatch_arch_ptrace_resolve_ifunc(proc2pctx(obj->proc), &addr) < 0)
+				kpfatalerror("kpatch_arch_ptrace_resolve_ifunc failed\n");
 
 		break;
 	}

@@ -672,27 +672,6 @@ static int kpatch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 	return ret;
 }
 
-int kpatch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
-				unsigned long *addr)
-{
-	struct user_regs_struct regs;
-
-	unsigned char callrax[] = {
-		0xff, 0xd0, /* call *%rax */
-		0xcc, /* int3 */
-	};
-	int ret;
-
-	kpdebug("Executing callrax %lx (pid %d)\n", *addr, pctx->pid);
-	regs.rax = *addr;
-
-	ret = kpatch_execute_remote(pctx, callrax, sizeof(callrax), &regs);
-	if (ret == 0)
-		*addr = regs.rax;
-
-	return ret;
-}
-
 #define MAX_ERRNO	4095
 unsigned long
 kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,

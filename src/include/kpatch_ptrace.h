@@ -70,7 +70,7 @@ int kpatch_execute_remote(struct kpatch_ptrace_ctx *pctx,
 			  size_t codelen,
 			  struct user_regs_struct *pregs);
 
-int kpatch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
+int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
 				unsigned long *addr);
 unsigned long
 kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,

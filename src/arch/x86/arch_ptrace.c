@@ -22,6 +22,27 @@
 
 #include <gelf.h>
 
+int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
+				unsigned long *addr)
+{
+	struct user_regs_struct regs;
+
+	unsigned char callrax[] = {
+		0xff, 0xd0, /* call *%rax */
+		0xcc, /* int3 */
+	};
+	int ret;
+
+	kpdebug("Executing callrax %lx (pid %d)\n", *addr, pctx->pid);
+	regs.rax = *addr;
+
+	ret = kpatch_execute_remote(pctx, callrax, sizeof(callrax), &regs);
+	if (ret == 0)
+		*addr = regs.rax;
+
+	return ret;
+}
+
 int
 kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
 			   const unsigned char *code,
