@@ -22,6 +22,28 @@
 
 #include <gelf.h>
 
+void copy_regs(struct user_regs_struct *dst,
+		      struct user_regs_struct *src)
+{
+#define COPY_REG(x) dst->x = src->x
+	COPY_REG(r15);
+	COPY_REG(r14);
+	COPY_REG(r13);
+	COPY_REG(r12);
+	COPY_REG(rbp);
+	COPY_REG(rbx);
+	COPY_REG(r11);
+	COPY_REG(r10);
+	COPY_REG(r9);
+	COPY_REG(r8);
+	COPY_REG(rax);
+	COPY_REG(rcx);
+	COPY_REG(rdx);
+	COPY_REG(rsi);
+	COPY_REG(rdi);
+#undef COPY_REG
+}
+
 int kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
 		      struct timespec *timeout,
 		      const sigset_t *sigset)

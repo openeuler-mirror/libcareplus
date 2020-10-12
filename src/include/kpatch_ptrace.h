@@ -122,4 +122,7 @@ kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
 		      struct timespec *timeout,
 		      const sigset_t *sigset);
 
+void copy_regs(struct user_regs_struct *dst,
+		      struct user_regs_struct *src);
+
 #endif

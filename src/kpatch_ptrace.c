@@ -413,28 +413,6 @@ poke_back:
 	return ret;
 }
 
-static void copy_regs(struct user_regs_struct *dst,
-		      struct user_regs_struct *src)
-{
-#define COPY_REG(x) dst->x = src->x
-	COPY_REG(r15);
-	COPY_REG(r14);
-	COPY_REG(r13);
-	COPY_REG(r12);
-	COPY_REG(rbp);
-	COPY_REG(rbx);
-	COPY_REG(r11);
-	COPY_REG(r10);
-	COPY_REG(r9);
-	COPY_REG(r8);
-	COPY_REG(rax);
-	COPY_REG(rcx);
-	COPY_REG(rdx);
-	COPY_REG(rsi);
-	COPY_REG(rdi);
-#undef COPY_REG
-}
-
 static
 int
 kpatch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
