@@ -4,6 +4,40 @@
 #include "include/kpatch_parse.h"
 #include "include/kpatch_flags.h"
 
+int is_data_def(char *s, int type)
+{
+	kpstr_t t;
+
+	get_token(&s, &t);
+	if (
+	    /* strings */
+	    !kpstrcmpz(&t, ".ascii") ||
+	    !kpstrcmpz(&t, ".asciz") ||
+	    !kpstrcmpz(&t, ".string") ||
+	    /* numeric */
+	    !kpstrcmpz(&t, ".byte") ||
+	    !kpstrcmpz(&t, ".word") ||
+	    !kpstrcmpz(&t, ".short") ||
+	    !kpstrcmpz(&t, ".int") ||
+	    !kpstrcmpz(&t, ".long") ||
+	    !kpstrcmpz(&t, ".quad") ||
+	    /* float */
+	    !kpstrcmpz(&t, ".double") ||
+	    !kpstrcmpz(&t, ".float") ||
+	    !kpstrcmpz(&t, ".single") ||
+	    /* other */
+	    !kpstrcmpz(&t, ".value") ||
+	    !kpstrcmpz(&t, ".comm") ||
+	    !kpstrcmpz(&t, ".zero") ||
+	    /* dwarf types */
+	    !kpstrcmpz(&t, ".uleb128") ||
+	    !kpstrcmpz(&t, ".sleb128") ||
+	    !kpstrcmpz(&t, ".4byte")
+	)
+		return 1;
+	return 0;
+}
+
 int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm)
 {
 	char *s;

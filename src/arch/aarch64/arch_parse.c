@@ -4,6 +4,70 @@
 #include "include/kpatch_parse.h"
 #include "include/kpatch_flags.h"
 
+int is_data_def(char *s, int type)
+{
+	kpstr_t t;
+
+	get_token(&s, &t);
+	if (
+	    /* strings */
+	    !kpstrcmpz(&t, ".ascii") ||
+	    !kpstrcmpz(&t, ".asciz") ||
+	    !kpstrcmpz(&t, ".string") ||
+	    !kpstrcmpz(&t, ".string8") ||
+	    !kpstrcmpz(&t, ".string16") ||
+	    !kpstrcmpz(&t, ".string32") ||
+	    !kpstrcmpz(&t, ".string64") ||
+	    /* numeric */
+	    !kpstrcmpz(&t, ".byte") ||
+	    !kpstrcmpz(&t, ".1byte") ||
+	    !kpstrcmpz(&t, ".dc.b") ||
+
+	    !kpstrcmpz(&t, ".hword") ||
+	    !kpstrcmpz(&t, ".short") ||
+	    !kpstrcmpz(&t, ".2byte") ||
+	    !kpstrcmpz(&t, ".dc") ||
+	    !kpstrcmpz(&t, ".dc.w") ||
+	    !kpstrcmpz(&t, ".value") ||
+	    !kpstrcmpz(&t, ".octa") ||
+
+	    !kpstrcmpz(&t, ".word") ||
+	    !kpstrcmpz(&t, ".4byte") ||
+	    !kpstrcmpz(&t, ".long") ||
+	    !kpstrcmpz(&t, ".int") ||
+	    !kpstrcmpz(&t, ".dc.l") ||
+	    !kpstrcmpz(&t, ".dc.a") ||// (AArch32 only)
+
+	    !kpstrcmpz(&t, ".quad") ||
+	    !kpstrcmpz(&t, ".8byte") ||
+	    !kpstrcmpz(&t, ".xword") ||//(AArch64 only)
+	    !kpstrcmpz(&t, ".dc.a") ||//(AArch64 only)
+
+	    !kpstrcmpz(&t, ".short") ||
+	    !kpstrcmpz(&t, ".int") ||
+	    !kpstrcmpz(&t, ".long") ||
+	    !kpstrcmpz(&t, ".quad") ||
+	    /* float */
+	    !kpstrcmpz(&t, ".double") ||
+	    !kpstrcmpz(&t, ".dc.d") ||
+	    !kpstrcmpz(&t, ".float") ||
+	    !kpstrcmpz(&t, ".single") ||
+	    !kpstrcmpz(&t, ".dc.s") ||
+	    /* other */
+	    !kpstrcmpz(&t, ".value") ||
+	    !kpstrcmpz(&t, ".comm") ||
+	    !kpstrcmpz(&t, ".zero") ||
+	    !kpstrcmpz(&t, ".fill") ||
+	    !kpstrcmpz(&t, ".space") ||
+	    !kpstrcmpz(&t, ".skip") ||
+	    /* dwarf types */
+	    !kpstrcmpz(&t, ".uleb128") ||
+	    !kpstrcmpz(&t, ".sleb128")
+	)
+		return 1;
+	return 0;
+}
+
 int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm)
 {
 	char *s;
