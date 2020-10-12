@@ -51,6 +51,8 @@ void init_ctypes(struct kp_file *f);
 int ctype(struct kp_file *f, int l);
 int is_sect_cmd(struct kp_file *f, int l);
 
+
+int find_ctype(kpstr_t *t);
 int parse_ctype(char *s, bool with_checks);
 
 /* ----------------------------------------- sections ----------------------------------------- */
