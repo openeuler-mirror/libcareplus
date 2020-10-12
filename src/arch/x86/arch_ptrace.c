@@ -22,6 +22,51 @@
 
 #include <gelf.h>
 
+int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned long *addr)
+{
+	struct user_regs_struct regs;
+	unsigned long res, rsp;
+	int ret;
+
+	kpdebug("arch_prctl_remote: %d, %p\n", code, addr);
+	ret = ptrace(PTRACE_GETREGS, pctx->pid, NULL, &regs);
+	if (ret < 0) {
+		kpdebug("FAIL. Can't get regs - %s\n", strerror(errno));
+		return -1;
+	}
+	ret = kpatch_process_mem_read(pctx->proc,
+				      regs.rsp,
+				      &rsp,
+				      sizeof(rsp));
+	if (ret < 0) {
+		kplogerror("can't peek original stack data\n");
+		return -1;
+	}
+	ret = kpatch_syscall_remote(pctx, __NR_arch_prctl, code, regs.rsp, 0, 0, 0, 0, &res);
+	if (ret < 0)
+		goto poke;
+	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {
+		errno = -(long)res;
+		ret = -1;
+		goto poke;
+	}
+	ret = kpatch_process_mem_read(pctx->proc,
+				      regs.rsp,
+				      &res,
+				      sizeof(res));
+	if (ret < 0)
+		kplogerror("can't peek new stack data\n");
+
+poke:
+	if (kpatch_process_mem_write(pctx->proc,
+				     &rsp,
+				     regs.rsp,
+				     sizeof(rsp)))
+		kplogerror("can't poke orig stack data\n");
+	*addr = res;
+	return ret;
+}
+
 int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
 				unsigned long *addr)
 {

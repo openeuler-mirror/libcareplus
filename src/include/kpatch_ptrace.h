@@ -84,6 +84,8 @@ int
 kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
 		     unsigned long addr,
 		     size_t length);
+
+#define MAX_ERRNO	4095
 int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned long *addr);
 
 int

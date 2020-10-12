@@ -22,6 +22,55 @@
 
 #include <gelf.h>
 
+int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned long *addr)
+{
+	struct user_regs_struct regs;
+	struct iovec regs_iov;
+	regs_iov.iov_base = &regs;
+	regs_iov.iov_len = sizeof(regs);
+
+	unsigned long res, sp;
+	int ret;
+
+	kpdebug("arch_prctl_remote: %d, %p\n", code, addr);
+	ret = ptrace(PTRACE_GETREGSET, pctx->pid, (void*)NT_PRSTATUS, (void*)&regs_iov);
+	if (ret < 0) {
+		kpdebug("FAIL. Can't get regs - %s\n", strerror(errno));
+		return -1;
+	}
+	ret = kpatch_process_mem_read(pctx->proc,
+				      regs.sp,
+				      &sp,
+				      sizeof(sp));
+	if (ret < 0) {
+		kplogerror("can't peek original stack data\n");
+		return -1;
+	}
+	//ret = kpatch_syscall_remote(pctx, __NR_arch_prctl, code, regs.sp, 0, 0, 0, 0, &res);
+	if (ret < 0)
+		goto poke;
+	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {
+		errno = -(long)res;
+		ret = -1;
+		goto poke;
+	}
+	ret = kpatch_process_mem_read(pctx->proc,
+				      regs.sp,
+				      &res,
+				      sizeof(res));
+	if (ret < 0)
+		kplogerror("can't peek new stack data\n");
+
+poke:
+	if (kpatch_process_mem_write(pctx->proc,
+				     &sp,
+				     regs.sp,
+				     sizeof(sp)))
+		kplogerror("can't poke orig stack data\n");
+	*addr = res;
+	return ret;
+}
+
 int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
                 unsigned long *addr)
 {
