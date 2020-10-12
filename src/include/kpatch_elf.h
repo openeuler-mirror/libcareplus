@@ -43,4 +43,6 @@ struct kpatch_jmp_table {
 	struct kpatch_jmp_table_entry entries[0];
 };
 
+unsigned long kpatch_arch_add_jmp_entry(struct object_file *o, unsigned long addr);
+
 #endif
