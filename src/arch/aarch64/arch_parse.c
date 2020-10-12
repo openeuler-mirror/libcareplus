@@ -4,6 +4,75 @@
 #include "include/kpatch_parse.h"
 #include "include/kpatch_flags.h"
 
+int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm)
+{
+	char *s;
+	int l0 = l, globl = 0;
+	kpstr_t nm2, attr;
+
+	kpstrset(nm, "", 0);
+	for ( ; cline(f, l); l++) {
+
+		/* first verify that all the commands we met has the same symbol name... just to be safe! */
+		s = cline(f, l);
+		if (*s == '\0' && l != l0)
+			continue;
+		switch (ctype(f, l)) {
+			case DIRECTIVE_TYPE:
+			case DIRECTIVE_GLOBL:
+			case DIRECTIVE_LOCAL:
+				get_token(&s, &nm2);
+			case DIRECTIVE_LABEL:
+				get_token(&s, &nm2);
+				if (nm->l && kpstrcmp(nm, &nm2))		/* some other symbol met... stop */
+					return 0;
+				*nm = nm2;
+				break;
+		}
+
+		switch (ctype(f, l)) {
+			case DIRECTIVE_TEXT:
+			case DIRECTIVE_DATA:
+			case DIRECTIVE_BSS:
+			case DIRECTIVE_SECTION:
+			case DIRECTIVE_PUSHSECTION:
+			case DIRECTIVE_POPSECTION:
+			case DIRECTIVE_PREVIOUS:
+			case DIRECTIVE_SUBSECTION:
+				break;
+			case DIRECTIVE_TYPE:
+				get_type_args(cline(f, l), &nm2, &attr);
+				if (kpstrcmpz(&attr, "%object") && kpstrcmpz(&attr, "%tls_object"))
+					return 0;
+				break;
+			case DIRECTIVE_GLOBL:
+				globl = 1;
+				break;
+			case DIRECTIVE_ALIGN:
+				break;
+			case DIRECTIVE_COMMENT:
+			case DIRECTIVE_SIZE:
+				/* can't start with .size */
+				if (l0 == l)
+					return 0;
+				break;
+			case DIRECTIVE_LABEL:
+				if (!is_data_sect(csect(f, l)))
+					return 0;
+				/* fall throught */
+			case DIRECTIVE_LOCAL:
+				if (e)
+					*e = l + 1;
+				if (pglobl)
+					*pglobl = globl;
+				return 1;
+			default:
+				return 0;
+		}
+	}
+	return 0;
+}
+
 /* break manually crafted multiple statements separated by ; to separate lines */
 void init_multilines(struct kp_file *f)
 {

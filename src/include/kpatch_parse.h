@@ -109,6 +109,7 @@ void __get_token(char **str, kpstr_t *x, const char *delim);
 int is_function_start(struct kp_file *f, int l, kpstr_t *nm);
 int is_function_end(struct kp_file *f, int l, kpstr_t *nm);
 
+void get_type_args(char *s, kpstr_t *nm, kpstr_t *attr);
 int is_variable_start(struct kp_file *f, int l, int *e, int *globl, kpstr_t *nm);
 int is_data_def(char *s, int type);
 
