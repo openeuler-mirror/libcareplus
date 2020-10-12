@@ -102,4 +102,24 @@ kpatch_process_memcpy(kpatch_process_t *proc,
 		      unsigned long dst,
 		      unsigned long src,
 		      size_t size);
+
+#define BREAK_INSN_LENGTH	1
+#define BREAK_INSN		{0xcc}
+
+#define SEC_TO_MSEC	1000
+#define MSEC_TO_NSEC	1000000
+
+#define for_each_thread(proc, pctx)	\
+	list_for_each_entry(pctx, &proc->ptrace.pctxs, list)
+
+struct kpatch_ptrace_ctx *
+kpatch_ptrace_find_thread(kpatch_process_t *proc,
+			  pid_t pid,
+			  unsigned long rip);
+
+int
+kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
+		      struct timespec *timeout,
+		      const sigset_t *sigset);
+
 #endif
