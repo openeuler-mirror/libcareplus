@@ -211,4 +211,13 @@ is_kernel_object_name(char *name)
        return 0;
 }
 
+struct vm_hole *next_hole(struct vm_hole *hole, struct list_head *head);
+struct vm_hole *prev_hole(struct vm_hole *hole, struct list_head *head);
+unsigned long hole_size(struct vm_hole *hole);
+
+unsigned long random_from_range(unsigned long min, unsigned long max);
+unsigned long object_find_patch_region(struct object_file *obj,
+			 size_t memsize,
+			 struct vm_hole **hole);
+
 #endif /* ifndef __KPATCH_PROCESS__ */

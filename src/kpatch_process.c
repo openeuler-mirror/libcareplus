@@ -965,7 +965,7 @@ vm_hole_split(struct vm_hole *hole,
 	return 0;
 }
 
-static inline struct vm_hole *
+inline struct vm_hole *
 next_hole(struct vm_hole *hole, struct list_head *head)
 {
 	if (hole == NULL || hole->list.next == head)
@@ -974,7 +974,7 @@ next_hole(struct vm_hole *hole, struct list_head *head)
 	return list_entry(hole->list.next, struct vm_hole, list);
 }
 
-static inline struct vm_hole *
+inline struct vm_hole *
 prev_hole(struct vm_hole *hole, struct list_head *head)
 {
 	if (hole == NULL || hole->list.prev == head)
@@ -983,7 +983,7 @@ prev_hole(struct vm_hole *hole, struct list_head *head)
 	return list_entry(hole->list.prev, struct vm_hole, list);
 }
 
-static inline unsigned long
+inline unsigned long
 hole_size(struct vm_hole *hole)
 {
 	if (hole == NULL)
@@ -991,90 +991,11 @@ hole_size(struct vm_hole *hole)
 	return hole->end - hole->start;
 }
 
-static unsigned long
+unsigned long
 random_from_range(unsigned long min, unsigned long max)
 {
 	/* TODO this is not uniform nor safe */
 	return min + random() % (max - min);
-}
-
-/*
- * Find region for a patch. Take object's `previous_hole` as a left candidate
- * and the next hole as a right candidate. Pace through them until there is
- * enough space in the hole for the patch.
- *
- * Since holes can be much larger than 2GiB take extra caution to allocate
- * patch region inside the (-2GiB, +2GiB) range from the original object.
- */
-static unsigned long
-object_find_patch_region(struct object_file *obj,
-			 size_t memsize,
-			 struct vm_hole **hole)
-{
-	struct list_head *head = &obj->proc->vmaholes;
-	struct vm_hole *left_hole = obj->previous_hole,
-		       *right_hole = next_hole(left_hole, head);
-	unsigned long max_distance = 0x80000000;
-	struct obj_vm_area *sovma;
-
-	unsigned long obj_start, obj_end;
-	unsigned long region_start = 0, region_end = 0;
-
-	kpdebug("Looking for patch region for '%s'...\n", obj->name);
-
-	sovma = list_first_entry(&obj->vma, struct obj_vm_area, list);
-	obj_start = sovma->inmem.start;
-	sovma = list_entry(obj->vma.prev, struct obj_vm_area, list);
-	obj_end = sovma->inmem.end;
-
-
-	max_distance -= memsize;
-
-	/* TODO carefully check for the holes laying between obj_start and
-	 * obj_end, i.e. just after the executable segment of an executable
-	 */
-	while (left_hole != NULL && right_hole != NULL) {
-		if (right_hole != NULL &&
-		    right_hole->start - obj_start > max_distance)
-			right_hole = NULL;
-		else if (hole_size(right_hole) > memsize) {
-			region_start = right_hole->start;
-			region_end =
-				(right_hole->end - obj_start) <= max_distance ?
-				right_hole->end - memsize :
-				obj_start + max_distance;
-			*hole = right_hole;
-			break;
-		} else
-			right_hole = next_hole(right_hole, head);
-
-		if (left_hole != NULL &&
-		    obj_end - left_hole->end > max_distance)
-			left_hole = NULL;
-		else if (hole_size(left_hole) > memsize) {
-			region_start =
-				(left_hole->start - obj_end) <= max_distance ?
-				left_hole->start : obj_end > max_distance    ?
-				obj_end - max_distance : 0;
-			region_end = left_hole->end - memsize;
-			*hole = left_hole;
-			break;
-		} else
-			left_hole = prev_hole(left_hole, head);
-	}
-
-	if (region_start == region_end) {
-		kperr("can't find suitable region for patch on '%s'\n",
-		      obj->name);
-		return -1UL;
-	}
-
-	region_start = random_from_range(region_start >> PAGE_SHIFT,
-					 region_end >> PAGE_SHIFT);
-	region_start <<= PAGE_SHIFT;
-	kpdebug("Found patch region for '%s' at %lx\n", obj->name, region_start);
-
-	return region_start;
 }
 
 int
