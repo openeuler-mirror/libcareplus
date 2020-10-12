@@ -22,6 +22,35 @@
 
 #include <gelf.h>
 
+int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
+		unsigned long arg1, unsigned long arg2, unsigned long arg3,
+		unsigned long arg4, unsigned long arg5, unsigned long arg6,
+		unsigned long *res)
+{
+	struct user_regs_struct regs;
+
+	unsigned char syscall[] = {
+		0x0f, 0x05, /* syscall */
+		0xcc, /* int3 */
+	};
+	int ret;
+
+	kpdebug("Executing syscall %d (pid %d)...\n", nr, pctx->pid);
+	regs.rax = (unsigned long)nr;
+	regs.rdi = arg1;
+	regs.rsi = arg2;
+	regs.rdx = arg3;
+	regs.r10 = arg4;
+	regs.r8 = arg5;
+	regs.r9 = arg6;
+
+	ret = kpatch_execute_remote(pctx, syscall, sizeof(syscall), &regs);
+	if (ret == 0)
+		*res = regs.rax;
+
+	return ret;
+}
+
 int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned long *addr)
 {
 	struct user_regs_struct regs;
@@ -42,7 +71,7 @@ int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned 
 		kplogerror("can't peek original stack data\n");
 		return -1;
 	}
-	ret = kpatch_syscall_remote(pctx, __NR_arch_prctl, code, regs.rsp, 0, 0, 0, 0, &res);
+	ret = kpatch_arch_syscall_remote(pctx, __NR_arch_prctl, code, regs.rsp, 0, 0, 0, 0, &res);
 	if (ret < 0)
 		goto poke;
 	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {

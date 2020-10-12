@@ -643,35 +643,6 @@ kpatch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 	return 0;
 }
 
-static int kpatch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
-		unsigned long arg1, unsigned long arg2, unsigned long arg3,
-		unsigned long arg4, unsigned long arg5, unsigned long arg6,
-		unsigned long *res)
-{
-	struct user_regs_struct regs;
-
-	unsigned char syscall[] = {
-		0x0f, 0x05, /* syscall */
-		0xcc, /* int3 */
-	};
-	int ret;
-
-	kpdebug("Executing syscall %d (pid %d)...\n", nr, pctx->pid);
-	regs.rax = (unsigned long)nr;
-	regs.rdi = arg1;
-	regs.rsi = arg2;
-	regs.rdx = arg3;
-	regs.r10 = arg4;
-	regs.r8 = arg5;
-	regs.r9 = arg6;
-
-	ret = kpatch_execute_remote(pctx, syscall, sizeof(syscall), &regs);
-	if (ret == 0)
-		*res = regs.rax;
-
-	return ret;
-}
-
 unsigned long
 kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 		   unsigned long addr,
@@ -686,7 +657,7 @@ kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 
 	kpdebug("mmap_remote: 0x%lx+%lx, %x, %x, %d, %lx\n", addr, length,
 		prot, flags, fd, offset);
-	ret = kpatch_syscall_remote(pctx, __NR_mmap, (unsigned long)addr,
+	ret = kpatch_arch_syscall_remote(pctx, __NR_mmap, (unsigned long)addr,
 				    length, prot, flags, fd, offset, &res);
 	if (ret < 0)
 		return 0;
@@ -705,7 +676,7 @@ int kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
 	unsigned long res;
 
 	kpdebug("munmap_remote: 0x%lx+%lx\n", addr, length);
-	ret = kpatch_syscall_remote(pctx, __NR_munmap, (unsigned long)addr,
+	ret = kpatch_arch_syscall_remote(pctx, __NR_munmap, (unsigned long)addr,
 				    length, 0, 0, 0, 0, &res);
 	if (ret < 0)
 		return -1;

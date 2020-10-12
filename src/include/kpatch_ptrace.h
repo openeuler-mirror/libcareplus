@@ -136,4 +136,9 @@ kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
 				       void *data),
 			   void *data);
 
+int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
+		unsigned long arg1, unsigned long arg2, unsigned long arg3,
+		unsigned long arg4, unsigned long arg5, unsigned long arg6,
+		unsigned long *res);
+
 #endif
