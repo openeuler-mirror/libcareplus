@@ -141,4 +141,7 @@ int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 		unsigned long arg4, unsigned long arg5, unsigned long arg6,
 		unsigned long *res);
 
+int wait_for_mmap(struct kpatch_ptrace_ctx *pctx,
+	      unsigned long *pbase);
+
 #endif

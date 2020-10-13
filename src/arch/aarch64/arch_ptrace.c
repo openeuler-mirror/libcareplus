@@ -22,6 +22,64 @@
 
 #include <gelf.h>
 
+int
+wait_for_mmap(struct kpatch_ptrace_ctx *pctx,
+	      unsigned long *pbase)
+{
+	int ret, status = 0, insyscall = 0;
+	long rv;
+
+	while (1) {
+		ret = ptrace(PTRACE_SYSCALL, pctx->pid, NULL,
+			     (void *)(uintptr_t)status);
+		if (ret < 0) {
+			kplogerror("can't PTRACE_SYSCALL tracee - %d\n",
+				   pctx->pid);
+			return -1;
+		}
+
+		ret = waitpid(pctx->pid, &status, __WALL);
+		if (ret < 0) {
+			kplogerror("can't wait tracee - %d\n", pctx->pid);
+			return -1;
+		}
+
+		if (WIFEXITED(status)) {
+			status = WTERMSIG(status);
+			continue;
+		} else if (!WIFSTOPPED(status)) {
+			status = 0;
+			continue;
+		}
+
+		status = 0;
+
+		if (insyscall == 0) {
+			rv = ptrace(PTRACE_PEEKUSER, pctx->pid,
+				    offsetof(struct user_regs_struct,
+					     regs[29]),
+				    NULL);
+			if (rv == -1) {
+				kplogerror("ptrace(PTRACE_PEEKUSER)\n");
+				return -1;
+			}
+			insyscall = rv;
+			continue;
+		} else if (insyscall == __NR_mmap) {
+			rv = ptrace(PTRACE_PEEKUSER, pctx->pid,
+				    offsetof(struct user_regs_struct,
+					     regs[8]),
+				    NULL);
+			*pbase = rv;
+			break;
+		}
+
+		insyscall = !insyscall;
+	}
+
+	return 0;
+}
+
 int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 		unsigned long arg1, unsigned long arg2, unsigned long arg3,
 		unsigned long arg4, unsigned long arg5, unsigned long arg6,
