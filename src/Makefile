@@ -7,8 +7,10 @@ TARGETS = kpatch_gensrc \
 	  libcare-stresstest
 DEBUG = yes # comment out this line if not debug
 
+SRC_PATH := $(shell pwd)
+
 CC = gcc
-CFLAGS_MISC = -Wall -g -O2 -D_GNU_SOURCE
+CFLAGS_MISC = -Wall -g -O2 -D_GNU_SOURCE -I $(SRC_PATH)
 
 cc-option = $(shell if $(CC) $(CFLAGS_MISC) $(1) -S -o /dev/null -xc /dev/null \
 		> /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
@@ -17,6 +19,13 @@ CFLAGS_WARN = -Wuninitialized -Wreturn-type
 CFLAGS_WARN += $(call cc-option,-Wno-builtin-macro-redefined)
 CFLAGS_WARN += $(call cc-option,-Wno-deprecated-declarations)
 CFLAGS = $(CFLAGS_MISC) $(CFLAGS_WARN)
+
+ARCH := $(shell cat arch.desc)
+ifeq ($(ARCH),aarch64)
+VPATH = arch/aarch64
+else
+VPATH = arch/x86
+endif
 
 ifdef DEBUG
 CFLAGS += -DDEBUG -O0 -g
@@ -30,18 +39,18 @@ all: $(TARGETS)
 
 .SUFFIXES:
 
-kpatch_gensrc: kpatch_gensrc.o kpatch_dbgfilter.o kpatch_parse.o kpatch_io.o rbtree.o kpatch_log.o
+kpatch_gensrc: kpatch_gensrc.o kpatch_dbgfilter.o kpatch_parse.o kpatch_io.o rbtree.o kpatch_log.o arch_parse.o
 kpatch_make: kpatch_make.o
 
 LIBUNWIND_LIBS := $(shell pkg-config --libs libunwind libunwind-ptrace)
 
 
-libcare-ctl: kpatch_user.o kpatch_storage.o kpatch_patch.c kpatch_elf.o kpatch_ptrace.o kpatch_coro.o 
-libcare-ctl: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o
+libcare-ctl: kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
+libcare-ctl: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
 libcare-ctl: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
 
-libcare-stresstest: kpatch_user-stresstest.o kpatch_storage.o kpatch_patch.c kpatch_elf.o kpatch_ptrace.o kpatch_coro.o
-libcare-stresstest: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o
+libcare-stresstest: kpatch_user-stresstest.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
+libcare-stresstest: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
 libcare-stresstest: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
 
 libcare-client: libcare-client.o
