@@ -55,7 +55,10 @@ int kpatch_ptrace_detach(struct kpatch_ptrace_ctx *pctx);
 int kpatch_ptrace_handle_ld_linux(kpatch_process_t *proc,
 				  unsigned long *pentry_point);
 
-int kpatch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc);
+
+int wait_for_stop(struct kpatch_ptrace_ctx *pctx, void *data);
+int get_threadgroup_id(int tid);
+int kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc);
 int kpatch_ptrace_get_entry_point(struct kpatch_ptrace_ctx *pctx,
 				  unsigned long *pentry_point);
 

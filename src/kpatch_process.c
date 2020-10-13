@@ -856,7 +856,7 @@ kpatch_process_kickstart_execve_wrapper(kpatch_process_t *proc)
 {
 	int ret;
 
-	ret = kpatch_ptrace_kickstart_execve_wrapper(proc);
+	ret = kpatch_arch_ptrace_kickstart_execve_wrapper(proc);
 	if (ret < 0)
 		return -1;
 
