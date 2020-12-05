@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: implement applied patch list
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -107,6 +112,8 @@ process_new_object(kpatch_process_t *proc,
 	}
 	list_init(&o->list);
 	list_init(&o->vma);
+	list_init(&o->applied_patch);
+	o->num_applied_patch = 0;
 	o->proc = proc;
 	o->skpfile = NULL;
 	o->dev = dev;
@@ -126,7 +133,6 @@ process_new_object(kpatch_process_t *proc,
 	o->kpta = 0UL;
 	o->info = NULL;
 	o->ninfo = 0;
-	o->applied_patch = NULL;
 	o->vma_start = ~(unsigned long)0;
 	o->load_offset = ~(unsigned long)0;
 	memset(&o->ehdr, 0, sizeof(o->ehdr));
@@ -289,11 +295,16 @@ static void
 object_destroy(struct object_file *o)
 {
 	struct obj_vm_area *ovma, *tmp;
+	struct obj_applied_patch *patch, *temp;
 
 	list_del(&o->list);
 	list_for_each_entry_safe(ovma, tmp, &o->vma, list) {
 		list_del(&ovma->list);
 		free(ovma);
+	}
+	list_for_each_entry_safe(patch, temp, &o->applied_patch, list) {
+		list_del(&patch->list);
+		free(patch);
 	}
 	o->proc->num_objs--;
 	if (o->jmp_table)
@@ -309,7 +320,7 @@ object_destroy(struct object_file *o)
 	if (o->is_patch) {
 		free(o->info);
 	}
-	if (o->applied_patch == NULL)
+	if (o->num_applied_patch == 0)
 		free(o->kpfile.patch);
 	free(o);
 }
@@ -329,8 +340,8 @@ kpatch_object_dump(struct object_file *o)
 	if (log_level < LOG_INFO)
 		return;
 
-	if (o->applied_patch)
-		patchinfo = o->applied_patch->name;
+	if (o->num_applied_patch > 0)
+		patchinfo = "yes";
 	else
 		patchinfo = o->skpfile != NULL ? "yes" : "no";
 
@@ -393,11 +404,12 @@ kpatch_process_associate_patches(kpatch_process_t *proc)
 			struct obj_vm_area *patchvma;
 
 			bid = kpatch_get_buildid(o);
-			if (o->applied_patch != NULL || bid == NULL ||
+			if (bid == NULL ||
 			    strcmp(bid, objpatch->kpfile.patch->uname))
 				continue;
 
-			o->applied_patch = objpatch;
+			if (kpatch_object_add_applied_patch(o, objpatch) < 0)
+				return -1;
 			patchvma = list_first_entry(&objpatch->vma,
 						    struct obj_vm_area,
 						    list);
@@ -1123,4 +1135,38 @@ kpatch_process_get_obj_by_regex(kpatch_process_t *proc, const char *regex)
 
 	regfree(&r);
 	return found;
+}
+
+int
+kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new)
+{
+	struct obj_applied_patch *patch;
+
+	patch = malloc(sizeof(*patch));
+	if (!patch)
+		return -1;
+
+	if (!o || !new) {
+		free(patch);
+		return -1;
+	}
+
+	patch->patch_file = new;
+	list_add(&patch->list, &o->applied_patch);
+	o->num_applied_patch++;
+
+	return 0;
+}
+
+struct object_file *
+kpatch_object_find_applied_patch(struct object_file *o)
+{
+	struct obj_applied_patch *patch;
+	struct object_file *target = NULL;
+
+	list_for_each_entry(patch, &o->applied_patch, list) {
+		target = patch->patch_file;
+	}
+
+	return target;
 }

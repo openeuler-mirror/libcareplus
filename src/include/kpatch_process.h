@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: implement applied patch list
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ ******************************************************************************/
+
 #ifndef __KPATCH_PROCESS__
 #define __KPATCH_PROCESS__
 
@@ -30,6 +35,11 @@ struct obj_vm_area {
 	struct vm_area inelf;
 	struct vm_area ondisk;
 	struct list_head list;
+};
+
+struct obj_applied_patch {
+	struct list_head list;
+	struct object_file *patch_file;
 };
 
 struct object_file {
@@ -95,8 +105,10 @@ struct object_file {
 	/* Pointer to the previous hole in the patient's mapping */
 	struct vm_hole *previous_hole;
 
-	/* Pointer to the applied patch, if any */
-	struct object_file *applied_patch;
+	/* Pointer to the applied patch list, if any */
+	struct list_head applied_patch;
+	/* The number of applied patch */
+	size_t num_applied_patch;
 
 	/* Do we have patch for the object? */
 	unsigned int has_patch:1;
@@ -204,11 +216,11 @@ kpatch_process_get_obj_by_regex(kpatch_process_t *proc, const char *regex);
 static inline int
 is_kernel_object_name(char *name)
 {
-       if ((name[0] == '[') && (name[strlen(name) - 1] == ']'))
-               return 1;
-       if (strncmp(name, "anon_inode", 10) == 0)
-               return 1;
-       return 0;
+	if ((name[0] == '[') && (name[strlen(name) - 1] == ']'))
+		return 1;
+	if (strncmp(name, "anon_inode", 10) == 0)
+		return 1;
+	return 0;
 }
 
 struct vm_hole *next_hole(struct vm_hole *hole, struct list_head *head);
@@ -219,5 +231,8 @@ unsigned long random_from_range(unsigned long min, unsigned long max);
 unsigned long object_find_patch_region(struct object_file *obj,
 			 size_t memsize,
 			 struct vm_hole **hole);
+
+int kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new);
+struct object_file * kpatch_object_find_applied_patch(struct object_file *o);
 
 #endif /* ifndef __KPATCH_PROCESS__ */

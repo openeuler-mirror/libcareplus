@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: implement applied patch list
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -232,6 +237,7 @@ object_info(struct info_data *data, struct object_file *o,
 	int pid = proc->pid;
 	struct kpatch_storage_patch *patch = NULL;
 	int patch_found = PATCH_NOT_FOUND;
+	struct obj_applied_patch *applied_patch;
 
 	if (!o->is_elf || is_kernel_object_name(o->name))
 		return 0;
@@ -262,7 +268,7 @@ object_info(struct info_data *data, struct object_file *o,
 						 buildid,
 						 &patch);
 
-	if (o->applied_patch == NULL && !patch_found)
+	if (o->num_applied_patch == 0 && !patch_found)
 		return 0;
 
 	if (!*pid_printed) {
@@ -270,17 +276,17 @@ object_info(struct info_data *data, struct object_file *o,
 		*pid_printed = 1;
 	}
 
-	printf("%s buildid=%s", o->name, buildid);
-	if (o->applied_patch != NULL) {
-		int patchlvl = o->kpfile.patch->user_level;
-		printf(" patchlvl=%d", patchlvl);
+	printf("process=%s; buildid=%s; applied patch number=%ld\n", o->name, buildid, o->num_applied_patch);
+	list_for_each_entry(applied_patch, &o->applied_patch, list) {
+		printf("--->patch->magic=%s\n", applied_patch->patch_file->kpfile.patch->magic);
 	}
+
 	if (storage_patch_found(patch) && patch->patchlevel) {
 		printf(" latest=%d", patch->patchlevel);
 	}
 
 	/* empty patch patchlevel=0 with description of bugs in the version */
-	if (patch && patch->patchlevel == 0 && o->applied_patch == NULL) {
+	if (patch && patch->patchlevel == 0 && o->num_applied_patch == 0) {
 		printf(" %sVULNERABLE%s\n", RED, RESET);
 
 		if (data->print_description) {
@@ -299,7 +305,7 @@ object_info(struct info_data *data, struct object_file *o,
 
 	/* Old or no patch applied but we have one in storage */
 	if (patch && patch->patchlevel != 0 &&
-	    (o->applied_patch == NULL || patch->patchlevel > o->kpfile.patch->user_level)) {
+	    (o->num_applied_patch == 0 || patch->patchlevel > o->kpfile.patch->user_level)) {
 		if (data->print_description) {
 			char *desc;
 
@@ -314,7 +320,7 @@ object_info(struct info_data *data, struct object_file *o,
 	}
 
 	/* patch applied and is latest version. show descripition for it */
-	if (patch && o->applied_patch != NULL && data->print_description) {
+	if (patch && (o->num_applied_patch > 0) && data->print_description) {
 		char *desc;
 
 		printf("\n%slatest patch applied\n", GREEN);

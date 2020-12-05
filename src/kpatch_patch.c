@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: implement applied patch list
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -300,12 +305,6 @@ object_apply_patch(struct object_file *o)
 	if (o->skpfile == NULL || o->is_patch)
 		return 0;
 
-	if (o->applied_patch) {
-		kpinfo("Object '%s' already have a patch, not patching\n",
-		       o->name);
-		return 0;
-	}
-
 	ret = duplicate_kp_file(o);
 	if (ret < 0) {
 		kplogerror("can't duplicate kp_file\n");
@@ -380,53 +379,12 @@ static int
 object_unapply_patch(struct object_file *o, int check_flag);
 
 static int
-object_unapply_old_patch(struct object_file *o)
-{
-	struct kpatch_file *kpatch_applied, *kpatch_storage;
-	int ret;
-
-	if (o->skpfile == NULL || o->is_patch || o->applied_patch == NULL)
-		return 0;
-
-	kpatch_applied = o->applied_patch->kpfile.patch;
-	kpatch_storage = o->skpfile->patch;
-
-	if (kpatch_applied->user_level >= kpatch_storage->user_level) {
-		kpinfo("'%s' applied patch level is %d (storage has %d\n)\n",
-		       o->name,
-		       kpatch_applied->user_level,
-		       kpatch_storage->user_level);
-		return 1;
-	}
-
-	printf("%s: replacing patch level %d with level %d\n",
-	       o->name,
-	       kpatch_applied->user_level,
-	       kpatch_storage->user_level);
-	ret = object_unapply_patch(o, /* check_flag */ 0);
-	if (ret < 0)
-		kperr("can't unapply patch for %s\n", o->name);
-	else {
-		/* TODO(pboldin): handle joining the holes here */
-		o->applied_patch = NULL;
-		o->info = NULL;
-		o->ninfo = 0;
-	}
-
-	return ret;
-}
-
-static int
 kpatch_apply_patches(kpatch_process_t *proc)
 {
 	struct object_file *o;
 	int applied = 0, ret;
 
 	list_for_each_entry(o, &proc->objs, list) {
-
-		ret = object_unapply_old_patch(o);
-		if (ret < 0)
-			break;
 
 		ret = object_apply_patch(o);
 		if (ret < 0)
@@ -551,6 +509,7 @@ object_find_applied_patch_info(struct object_file *o)
 	size_t nalloc = 0;
 	struct process_mem_iter *iter;
 	int ret;
+	struct object_file *target = kpatch_object_find_applied_patch(o);
 
 	if (o->info != NULL)
 		return 0;
@@ -579,8 +538,8 @@ object_find_applied_patch_info(struct object_file *o)
 		o->ninfo++;
 	} while (1);
 
-	o->applied_patch->info = o->info;
-	o->applied_patch->ninfo = o->ninfo;
+	target->info = o->info;
+	target->ninfo = o->ninfo;
 
 err:
 	kpatch_process_mem_iter_free(iter);
@@ -660,12 +619,14 @@ kpatch_unapply_patches(kpatch_process_t *proc,
 	int ret;
 	size_t unapplied = 0;
 
+	/* TODO: disable before patch->id is introduced
 	ret = kpatch_process_associate_patches(proc);
 	if (ret < 0)
 		return ret;
+	*/
 
 	list_for_each_entry(o, &proc->objs, list) {
-		if (o->applied_patch == NULL)
+		if (o->num_applied_patch == 0)
 			continue;
 
 		if (!kpatch_should_unapply_patch(o, buildids, nbuildids))
