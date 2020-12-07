@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: introduce patch-id
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +31,7 @@ static void xerror(const char *fmt, ...)
 	exit(1);
 }
 
-int make_file(int fdo, void *buf1, off_t size, const char *buildid)
+int make_file(int fdo, void *buf1, off_t size, const char *buildid, const char *patch_id)
 {
 	int res;
 	struct kpatch_file khdr;
@@ -34,6 +39,7 @@ int make_file(int fdo, void *buf1, off_t size, const char *buildid)
 	memset(&khdr, 0, sizeof(khdr));
 
 	memcpy(khdr.magic, KPATCH_FILE_MAGIC1, sizeof(khdr.magic));
+	strncpy(khdr.id, patch_id, sizeof(khdr.id));
 	strncpy(khdr.uname, buildid, sizeof(khdr.uname));
 	khdr.build_time = (uint64_t)time(NULL);
 	khdr.csum = 0;		/* FIXME */
@@ -55,9 +61,10 @@ int make_file(int fdo, void *buf1, off_t size, const char *buildid)
 
 static void usage(void)
 {
-	printf("Usage: kpatch_make [-d] -n <modulename> [-v <version>] -e <entryaddr> [-o <output>] <input1> [input2]\n");
+	printf("Usage: kpatch_make [-d] -n <modulename> [-v <version>] -e <entryaddr> [-o <output>] -i <patch_id> <input1> [input2]\n");
 	printf("   -b buildid = target buildid for patch\n");
 	printf("   -d debug (verbose)\n");
+	printf("   -i unique patch id\n");
 	printf("\n");
 	printf("   result is printed to output and is the following:\n");
 	printf("      header          - struct kpatch_file\n");
@@ -71,9 +78,9 @@ int main(int argc, char **argv)
 	int fd1, fdo;
 	void *buf;
 	struct stat st;
-	char *buildid = NULL, *outputname = NULL;
+	char *buildid = NULL, *outputname = NULL, *patch_id = NULL;
 
-	while ((opt = getopt(argc, argv, "db:o:v:s:")) != -1) {
+	while ((opt = getopt(argc, argv, "db:o:i:v:s:")) != -1) {
 		switch (opt) {
 		case 'd':
 			verbose = 1;
@@ -84,12 +91,15 @@ int main(int argc, char **argv)
 		case 'o':
 			outputname = strdup(optarg);
 			break;
+		case 'i':
+			patch_id = strdup(optarg);
+			break;
 		default: /* '?' */
 			usage();
 		}
 	}
 
-	if (buildid == NULL)
+	if (buildid == NULL || patch_id == NULL)
 		usage();
 
 	fd1 = open(argv[optind], O_RDONLY);
@@ -109,5 +119,5 @@ int main(int argc, char **argv)
 			xerror("Can't open output file '%s'", outputname);
 	}
 
-	return make_file(fdo, buf, st.st_size, buildid);
+	return make_file(fdo, buf, st.st_size, buildid, patch_id);
 }

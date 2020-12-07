@@ -7,6 +7,7 @@ Makes `kpatch'es for the makesystem in the current directory.
 Usage:	libcare-patch-make [-h|--help] [-u|--update || -c|--clean]
 	[-s|--srcdir=SRCDIR] \
 	[-d|--destdir=DESTDIRVAR] \
+	[-i|--id=PATCH-ID] \
 	[-j|--jobs=<number of jobs>] \
 	PATCH1 PATCH2 ...
 
@@ -18,6 +19,7 @@ install with specified DESTDIR.
 		working on patch utils.
   -d --destdir	specify variable makefile system uses to specify destination
 		directory for the installation
+  -i --id>-give this patch an unique id (less than 7 char)
   -j --jobs 	specify variable makefile system jobs of compile, for example
   		`make -j 4` is startup `4` jobs to compile.
 EOF
@@ -145,7 +147,7 @@ build_kpatches() {
 			"${patchedexec}.stripped" || continue
 		/usr/bin/strip --strip-unneeded "${patchedexec}.stripped"
 		$KPATCH_PATH/kpatch_strip --undo-link "$origexec" "${patchedexec}.stripped"
-		$KPATCH_PATH/kpatch_make -b "$buildid" \
+		$KPATCH_PATH/kpatch_make -b "$buildid" -i "$patch_id" \
 			"${patchedexec}.stripped" -o "${patchedexec}.kpatch"
 		cp "${patchedexec}.kpatch" "${LPMAKE_PATCHROOT}"/${buildid}.kpatch
 		echo "patch for ${origexec} is in ${LPMAKE_PATCHROOT}/${buildid}.kpatch"
@@ -155,7 +157,7 @@ build_kpatches() {
 main() {
 	PROG_NAME=$(basename $0)
 
-	TEMP=$(getopt -o s:ucd:j: --long srcdir:,update,clean,destdir:,jobs: -n ${PROG_NAME} -- "$@" || usage 1)
+	TEMP=$(getopt -o s:ucd:i:j: --long srcdir:,update,clean,destdir:,id:,jobs: -n ${PROG_NAME} -- "$@" || usage 1)
 	eval set -- "$TEMP"
 
 	destdir="DESTDIR"
@@ -179,6 +181,11 @@ main() {
 			destdir=$1
 			shift
 			;;
+		-i|--id)
+			shift
+			patch_id="$1"
+			shift
+			;;
 		-j|--jobs)
 			shift
 			jobs_make=$1
@@ -189,6 +196,11 @@ main() {
 			;;
 		esac
 	done
+
+	if [ -z "$patch_id" ] || [ ${#patch_id} -gt 7 ];then
+		echo "Invalid patch-id!" >&2
+		usage 1
+	fi
 
 	prepare_env
 

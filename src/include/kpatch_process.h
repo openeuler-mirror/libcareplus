@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.09.23 - libcare-ctl: introduce patch-id
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ *
  * 2021.09.23 - libcare-ctl: implement applied patch list
  * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
  ******************************************************************************/
@@ -179,11 +182,11 @@ kpatch_object_allocate_patch(struct object_file *obj,
 			     size_t sz);
 
 int
-kpatch_process_associate_patches(kpatch_process_t *proc);
+kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id);
 int
 kpatch_process_parse_proc_maps(kpatch_process_t *proc);
 int
-kpatch_process_map_object_files(kpatch_process_t *proc);
+kpatch_process_map_object_files(kpatch_process_t *proc, const char *patch_id);
 int
 kpatch_process_attach(kpatch_process_t *proc);
 
@@ -232,7 +235,8 @@ unsigned long object_find_patch_region(struct object_file *obj,
 			 size_t memsize,
 			 struct vm_hole **hole);
 
+int kpatch_object_check_duplicate_id(struct object_file *o, const char *patch_id);
 int kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new);
-struct object_file * kpatch_object_find_applied_patch(struct object_file *o);
+struct object_file * kpatch_object_find_applied_patch(struct object_file *o, const char *patch_id);
 
 #endif /* ifndef __KPATCH_PROCESS__ */
