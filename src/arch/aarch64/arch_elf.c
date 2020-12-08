@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - arch/aarch64/arch_elf: Add LDR and B instruction relocation
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-13
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -19,47 +24,95 @@
 static int kpatch_arch_apply_relocate(GElf_Rela *r, GElf_Sym *s,
 							void *loc, void *loc2, unsigned long val)
 {
+	uint32_t mask;
+	uint32_t immLo;
+	uint32_t immHi;
+
 	switch (GELF_R_TYPE(r->r_info)) {
 	case R_AARCH64_ABS64:
 		*(unsigned long *)loc = val;
 		kpdebug("R_AARCH64_ABS64: loc=0x%x, val =0x%lx\n",*(unsigned int*)loc,val);
 		break;
 	case R_AARCH64_ADD_ABS_LO12_NC: {
-		//ADD ins
+		/* ADD ins */
 		kpdebug("R_AARCH64_ADD_ABS_LO12_NC: val=0x%lx\n", val);
 		val = val & 0xfff;
-		uint32_t mask = 0xfff << 10;
+		mask = 0xfff << 10;
 		*(unsigned int*)loc &= ~mask;
 		or_32(loc, (val & 0xfff) << 10);
 		kpdebug("R_AARCH64_ADD_ABS_LO12_NC: loc=0x%x, val =0x%lx\n",*(unsigned int*)loc,val);
 		break;
 	}
 	case R_AARCH64_CALL26: {
-		// TODO bl ins
+		/* BL ins */
 		kpdebug("R_AARCH64_CALL26: val=0x%lx\n", val);
 		val -= (unsigned long)loc2;
-		uint32_t mask = 0x03FFFFFF;;
+		mask = 0x03FFFFFF;;
 		*(unsigned int*)loc &= ~mask;
 		or_32(loc, (val >> 2) & mask);
 		kpdebug("R_AARCH64_CALL26: loc=0x%x, val =0x%lx\n",*(unsigned int*)loc, val);
 		break;
 	}
 	case R_AARCH64_ADR_PREL_PG_HI21: {
-		// TODO ADRP ins
-		kpdebug("RR_AARCH64_ADR_PREL_PG_HI21: val=0x%lx\n", val);
+		/* ADRP ins */
+		kpdebug("R_AARCH64_ADR_PREL_PG_HI21: val=0x%lx\n", val);
 		val = (val >> 12) - ((unsigned long)loc2 >> 12);
-		kpdebug("val=0x%lx\n",val);
-		uint32_t immLo = (val & 0x3) << 29;
-		uint32_t immHi = (val & 0x1FFFFC) << 3;
-		uint64_t mask = (0x3 << 29) | (0x1FFFFC << 3);
+		immLo = (val & 0x3) << 29;
+		immHi = (val & 0x1FFFFC) << 3;
+		mask = (0x3 << 29) | (0x1FFFFC << 3);
 		*(unsigned int*)loc = (*(unsigned int*)loc & ~mask) | immLo | immHi;
-		//*(unsigned int*)loc &= 0x7fffffff;
-		kpdebug("lo=0x%x hi=0x%x\n",immLo,immHi);
 		kpdebug("R_AARCH64_ADR_PREL_PG_HI21: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
 		break;
 	}
+	case R_AARCH64_ADR_GOT_PAGE: {
+		/* ADRP ins  */
+		kpdebug("R_AARCH64_ADR_GOT_PAGE: val=0x%lx\n", val);
+		val = (val >> 12) - ((unsigned long)loc2 >> 12);
+		immLo = (val & 0x3) << 29;
+		immHi = (val & 0x1FFFFC) << 3;
+		mask = (0x3 << 29) | (0x1FFFFC << 3);
+		*(unsigned int*)loc = (*(unsigned int*)loc & ~mask) | immLo | immHi;
+		kpdebug("R_AARCH64_ADR_GOT_PAGE: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
+		break;
+	}
+	case R_AARCH64_LD64_GOT_LO12_NC: {
+		/* LDR ins
+		 * For function, because we don't use GOT in patch code,
+		 * so chang LDR to ADD.
+		 * For object, we use jmp table instead GOT, so keep using LDR.
+		 */
+		kpdebug("R_AARCH64_LD64_GOT_LO12_NC: val=0x%lx\n", val);
+		if (GELF_ST_TYPE(s->st_info) == STT_OBJECT &&
+		   s->st_shndx == SHN_UNDEF &&
+		   GELF_ST_BIND(s->st_info) == STB_GLOBAL) {
+			/* This case is for a new global var from DSO */
+			val += 8;
+			val = ((val & 0xfff) >> 3) << 10;
+			*(unsigned int*)loc = *(unsigned int*)loc & ~(0xfff << 10);
+			*(unsigned int*)loc = *(unsigned int*)loc | val;
+			break;
+		}
+		*(unsigned int*)loc = (*(unsigned int*)loc & ~(0x3ff << 22));
+		*(unsigned int*)loc = (*(unsigned int*)loc | (0x244 << 22));
+		val = val & 0xfff;
+		mask = 0xfff << 10;
+		*(unsigned int*)loc &= ~mask;
+		or_32(loc, (val & 0xfff) << 10);
+		kpdebug("R_AARCH64_LD64_GOT_LO12_NC: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
+		break;
+	}
+	case R_AARCH64_JUMP26: {
+		/* B ins  */
+		kpdebug("R_AARCH64_JUMP26: val=0x%lx\n", val);
+		val = (val >> 2) - ((unsigned long)loc2 >> 2);
+		val = val & ~(0x3f << 26);
+		*(unsigned int*)loc = *(unsigned int*)loc & (0x3f << 26);
+		*(unsigned int*)loc = *(unsigned int*)loc | val;
+		kpdebug("R_AARCH64_JUMP26: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
+		break;
+	}
 	default:
-		kperr("unknown relocation type: %lx\n", r->r_info);
+		kperr("unknown relocation type: %ld\n", GELF_R_TYPE(r->r_info));
 		return -1;
 	}
 	return 0;
@@ -108,7 +161,9 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
 			val = s->st_size;
 		}
 
-		kpatch_arch_apply_relocate(r, s, loc, loc2, val);
+		if(kpatch_arch_apply_relocate(r, s, loc, loc2, val)) {
+			return -1;
+		}
 	}
 
 	return 0;
