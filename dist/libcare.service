@@ -1,0 +1,9 @@
+[Unit]
+Description=LibCare patch server
+
+[Service]
+
+ExecStart=/usr/bin/libcare-ctl server &3
+ExecStartPost=/usr/bin/libcare-client update
+
+ExecStop=/usr/bin/libcare-client stop
