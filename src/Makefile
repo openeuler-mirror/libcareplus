@@ -98,10 +98,8 @@ install: all
 	$(INSTALL) -m 0755 libcare-client $(DESTDIR)/$(bindir)/libcare-client
 	$(INSTALL) -m 0755 libcare-cc $(DESTDIR)/$(bindir)/libcare-cc
 	$(INSTALL) -m 0755 libcare-patch-make $(DESTDIR)/$(bindir)/libcare-patch-make
-
-	$(INSTALL) -d $(DESTDIR)/$(libexecdir)/libcare
-	$(INSTALL) -m 0755 kpatch_gensrc $(DESTDIR)/$(libexecdir)/libcare/kpatch_gensrc
-	$(INSTALL) -m 0755 kpatch_make $(DESTDIR)/$(libexecdir)/libcare/kpatch_make
-	$(INSTALL) -m 0755 kpatch_strip $(DESTDIR)/$(libexecdir)/libcare/kpatch_strip
+	$(INSTALL) -m 0755 kpatch_gensrc $(DESTDIR)/$(bindir)/kpatch_gensrc
+	$(INSTALL) -m 0755 kpatch_make $(DESTDIR)/$(bindir)/kpatch_make
+	$(INSTALL) -m 0755 kpatch_strip $(DESTDIR)/$(bindir)/kpatch_strip
 
 .PHONY:	all clean test tests tests-gensrc tests-strip
