@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.09.23 - arch/aarch64/arch_parse: improve VAR_CBLOCK start indentify
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-14
+ *
  * 2021.09.23 - arch/aarch64/arch_parse: modify is_variable_start function for gensrc in arm
  * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-10
  ******************************************************************************/
@@ -136,22 +139,19 @@ int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm
 			case DIRECTIVE_TEXT:
 			case DIRECTIVE_DATA:
 			case DIRECTIVE_BSS:
+			case DIRECTIVE_SECTION:
 			case DIRECTIVE_PUSHSECTION:
 			case DIRECTIVE_POPSECTION:
 			case DIRECTIVE_PREVIOUS:
 			case DIRECTIVE_SUBSECTION:
 				break;
-			case DIRECTIVE_SECTION:
-				if (nm2.s != NULL)
-					break;
+			case DIRECTIVE_SET:
 				get_token(&s, &nm2);
 				get_token(&s, &nm2);
-				if (kpstrcmpz(&nm2, ".rodata") == 0) {
-					*nm = nm2;
-					if(e)
-						*e = l + 2;
-					return 1;
-				}
+				*nm = nm2;
+				if (e)
+					*e = l + 1;
+				return 1;
 			case DIRECTIVE_TYPE:
 				get_type_args(cline(f, l), &nm2, &attr);
 				if (kpstrcmpz(&attr, "%object") && kpstrcmpz(&attr, "%tls_object"))
