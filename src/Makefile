@@ -55,7 +55,7 @@ libcare-stresstest: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
 
 libcare-client: libcare-client.o
 
-kpatch_strip: kpatch_strip.o kpatch_elf_objinfo.o kpatch_log.o
+kpatch_strip: kpatch_strip.o kpatch_elf_objinfo.o kpatch_log.o arch_strip.o
 kpatch_strip: LDLIBS = -lelf
 
 libcare-cc: kpatch_cc.o

@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.09.23 - tls: add support for tls symbol
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-15
+ *
  * 2021.09.23 - arch/aarch64/arch_elf: Add LDR and B instruction relocation
  * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-13
  ******************************************************************************/
@@ -29,6 +32,18 @@ static int kpatch_arch_apply_relocate(GElf_Rela *r, GElf_Sym *s,
 	uint32_t immHi;
 
 	switch (GELF_R_TYPE(r->r_info)) {
+	case R_AARCH64_NONE:
+	case R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC:
+		break;
+	case R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21:
+		kpdebug("R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21: val=0x%lx\n", val);
+		val = (val >> 12) - ((unsigned long)loc2 >> 12);
+		immLo = (val & 0x3) << 29;
+		immHi = (val & 0x1FFFFC) << 3;
+		mask = (0x3 << 29) | (0x1FFFFC << 3);
+		*(unsigned int*)loc = (*(unsigned int*)loc & ~mask) | immLo | immHi;
+		kpdebug("R_AARCH64_TLSIE_ADR_GOTTPREL_PAGE21: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
+		break;
 	case R_AARCH64_ABS64:
 		*(unsigned long *)loc = val;
 		kpdebug("R_AARCH64_ABS64: loc=0x%x, val =0x%lx\n",*(unsigned int*)loc,val);
@@ -159,6 +174,17 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
 
 		if (is_kpatch_info && is_undef_symbol(s)) {
 			val = s->st_size;
+		}
+		/*
+		   Special care for TLS symbol
+		   i.  For GLOBAL TLS symbol, point to GOT entry
+		   ii. For LOCAL TLS symbol, do nothing since everything is done in static-link
+		 */
+		if (GELF_ST_TYPE(s->st_info) == STT_TLS) {
+			if (GELF_ST_BIND(s->st_info) == STB_LOCAL)
+				return 0;
+			else
+				val = r->r_addend + o->load_offset;
 		}
 
 		if(kpatch_arch_apply_relocate(r, s, loc, loc2, val)) {
