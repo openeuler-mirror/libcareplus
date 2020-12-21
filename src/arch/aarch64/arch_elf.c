@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.07 - aarch64/arch_elf: Add R_AARCH64_LDST32_ABS_LO12_NC relocation type for arm
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-16
+ *
  * 2021.09.23 - tls: add support for tls symbol
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-15
  *
@@ -124,6 +127,14 @@ static int kpatch_arch_apply_relocate(GElf_Rela *r, GElf_Sym *s,
 		*(unsigned int*)loc = *(unsigned int*)loc & (0x3f << 26);
 		*(unsigned int*)loc = *(unsigned int*)loc | val;
 		kpdebug("R_AARCH64_JUMP26: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
+		break;
+	}
+	case R_AARCH64_LDST32_ABS_LO12_NC: {
+		/* LDR ins */
+		val = ((val & 0xfff) >> 3) << 10;
+		*(unsigned int*)loc = *(unsigned int*)loc & ~(0xfff << 10);
+		*(unsigned int*)loc = *(unsigned int*)loc | val;
+		kpdebug("R_AARCH64_LDST32_ABS_LO12_NC: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
 		break;
 	}
 	default:
