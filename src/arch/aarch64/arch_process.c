@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.07 - process: fix region_start caclulation
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-17
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -47,7 +52,7 @@ object_find_patch_region(struct object_file *obj,
 	struct list_head *head = &obj->proc->vmaholes;
 	struct vm_hole *left_hole = obj->previous_hole,
 		       *right_hole = next_hole(left_hole, head);
-	unsigned long max_distance = 0x80000000;
+	unsigned long max_distance = 0x8000000;
 	struct obj_vm_area *sovma;
 
 	unsigned long obj_start, obj_end;
@@ -102,17 +107,7 @@ object_find_patch_region(struct object_file *obj,
 		return -1UL;
 	}
 
-	/*
-	 * On aarch64, virtual address of text and data segments may be continuous,
-	 * gap between data segment and process heap may be huge. Need to have
-	 * region_end fixed. Here goes the trick:
-	 * The branch instruction jump size is in the range of +/-128MB.
-	 * So we need to put limitation to the region_end.
-	 */
-	region_end = region_start + (0x1<<25);
-	region_start = random_from_range(region_start >> PAGE_SHIFT,
-					 region_end >> PAGE_SHIFT);
-	region_start <<= PAGE_SHIFT;
+	region_start = (region_start >> PAGE_SHIFT) << PAGE_SHIFT;
 	kpdebug("Found patch region for '%s' at %lx\n", obj->name, region_start);
 
 	return region_start;

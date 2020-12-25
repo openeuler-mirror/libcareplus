@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.07 - process: fix region_start caclulation
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-17
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -101,7 +106,7 @@ unsigned long object_find_patch_region(struct object_file *obj,
 		return -1UL;
 	}
 
-	region_start += PAGE_SIZE;
+	region_start = (region_start >> PAGE_SHIFT) << PAGE_SHIFT;
 	kpdebug("Found patch region for '%s' at %lx\n", obj->name, region_start);
 
 	return region_start;
