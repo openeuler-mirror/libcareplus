@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.07 - aarch64/arch_elf: Add ldr and ldrb relocation for aarch64
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-18
+ *
  * 2021.10.07 - aarch64/arch_elf: Add R_AARCH64_LDST32_ABS_LO12_NC relocation type for arm
  * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-16
  *
@@ -137,6 +140,22 @@ static int kpatch_arch_apply_relocate(GElf_Rela *r, GElf_Sym *s,
 		kpdebug("R_AARCH64_LDST32_ABS_LO12_NC: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
 		break;
 	}
+	case R_AARCH64_LDST64_ABS_LO12_NC: {
+		/* LDR ins */
+		val = ((val & 0xfff) >> 3) << 10;
+		*(unsigned int*)loc = *(unsigned int*)loc & ~(0xfff << 10);
+		*(unsigned int*)loc = *(unsigned int*)loc | val;
+		kpdebug("R_AARCH64_LDST64_ABS_LO12_NC: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
+		break;
+        }
+	case R_AARCH64_LDST8_ABS_LO12_NC: {
+		/* LDRB ins */
+		val = ((val & 0xfff) >> 3) << 10;
+		*(unsigned int*)loc = *(unsigned int*)loc & ~(0xfff << 10);
+		*(unsigned int*)loc = *(unsigned int*)loc | val;
+		kpdebug("R_AARCH64_LDST8_ABS_LO12_NC: loc=0x%x, val=0x%lx\n", *(unsigned int *)loc, val);
+		break;
+        }
 	default:
 		kperr("unknown relocation type: %ld\n", GELF_R_TYPE(r->r_info));
 		return -1;
