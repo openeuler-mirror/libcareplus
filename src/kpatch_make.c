@@ -1,6 +1,9 @@
 /******************************************************************************
+ * 2021.10.07 - process: add some checks before patching
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #include <stdio.h>
@@ -99,7 +102,7 @@ int main(int argc, char **argv)
 		}
 	}
 
-	if (buildid == NULL || patch_id == NULL)
+	if (buildid == NULL || patch_id == NULL || *patch_id == '\0')
 		usage();
 
 	fd1 = open(argv[optind], O_RDONLY);

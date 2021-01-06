@@ -1,9 +1,12 @@
 /******************************************************************************
+ * 2021.10.07 - process: add some checks before patching
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
  * 2021.09.23 - libcare-ctl: implement applied patch list
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #include <stdio.h>
@@ -429,8 +432,10 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 		}
 	}
 
-	if (patch_id && !found_target)
+	if (patch_id && !found_target) {
 		fprintf(stderr, "Failed to find target patch with patch_id=%s!\n", patch_id);
+		return -1;
+	}
 
 	return found;
 }
@@ -549,7 +554,7 @@ kpatch_process_map_object_files(kpatch_process_t *proc, const char *patch_id)
 		kpinfo("Found %d applied patch(es).\n", ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void
