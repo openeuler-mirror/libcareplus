@@ -1,9 +1,12 @@
 /******************************************************************************
+ * 2021.10.07 - time: add frozen time count for patch/unpatch
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
  * 2021.09.23 - libcare-ctl: implement applied patch list
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #include <stdio.h>
@@ -28,7 +31,9 @@
 #include "include/kpatch_ptrace.h"
 #include "include/list.h"
 #include "include/kpatch_log.h"
+#include <sys/time.h>
 
+#define GET_MICROSECONDS(a, b) ((a.tv_sec - b.tv_sec) * 1000000 + (a.tv_usec - b.tv_usec))
 
 static inline int
 is_addr_in_info(unsigned long addr,
@@ -421,6 +426,8 @@ int process_patch(int pid, void *_data)
 	int ret;
 	kpatch_process_t _proc, *proc = &_proc;
 	struct patch_data *data = _data;
+	struct timeval start_tv, end_tv;
+	unsigned long frozen_time;
 
 	kpatch_storage_t *storage = data->storage;
 	int is_just_started = data->is_just_started;
@@ -470,6 +477,7 @@ int process_patch(int pid, void *_data)
 	if (ret <= 0)
 		goto out_free;
 
+	gettimeofday(&start_tv, NULL);
 	/* Finally, attach to process */
 	ret = kpatch_process_attach(proc);
 	if (ret < 0)
@@ -491,6 +499,9 @@ int process_patch(int pid, void *_data)
 
 out_free:
 	kpatch_process_free(proc);
+	gettimeofday(&end_tv, NULL);
+	frozen_time = GET_MICROSECONDS(end_tv, start_tv);
+	kpinfo("PID '%d' process patch frozen_time is %ld microsecond\n", pid, frozen_time);
 
 out:
 	if (ret < 0) {
@@ -669,6 +680,8 @@ int process_unpatch(int pid, void *_data)
 	char **buildids = data->buildids;
 	int nbuildids = data->nbuildids;
 	const char *patch_id = data->patch_id;
+	struct timeval start_tv, end_tv;
+	unsigned long frozen_time;
 
 	ret = kpatch_process_init(proc, pid, /* start */ 0, /* send_fd */ -1);
 	if (ret < 0)
@@ -676,6 +689,7 @@ int process_unpatch(int pid, void *_data)
 
 	kpatch_process_print_short(proc);
 
+	gettimeofday(&start_tv, NULL);
 	ret = kpatch_process_attach(proc);
 	if (ret < 0)
 		goto out;
@@ -692,6 +706,9 @@ int process_unpatch(int pid, void *_data)
 
 out:
 	kpatch_process_free(proc);
+	gettimeofday(&end_tv, NULL);
+	frozen_time = GET_MICROSECONDS(end_tv, start_tv);
+	kpinfo("PID '%d' process unpatch frozen_time is %ld microsecond\n", pid, frozen_time);
 
 	if (ret < 0)
 		printf("Failed to cancel patches for %d\n", pid);
