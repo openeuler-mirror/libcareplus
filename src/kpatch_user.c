@@ -1,9 +1,12 @@
 /******************************************************************************
+ * 2021.10.07 - libcare-ctl: optimize output of libcare-ctl info
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
  * 2021.09.23 - libcare-ctl: implement applied patch list
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #include <stdio.h>
@@ -238,8 +241,7 @@ init_colors(void)
 }
 
 static int
-object_info(struct info_data *data, struct object_file *o,
-	    int *pid_printed)
+object_info(struct info_data *data, struct object_file *o)
 {
 	const char *buildid;
 	kpatch_process_t *proc = o->proc;
@@ -247,7 +249,6 @@ object_info(struct info_data *data, struct object_file *o,
 	struct kpatch_storage_patch *patch = NULL;
 	int patch_found = PATCH_NOT_FOUND;
 	struct obj_applied_patch *applied_patch;
-	int i = 1;
 
 	if (!o->is_elf || is_kernel_object_name(o->name))
 		return 0;
@@ -281,15 +282,12 @@ object_info(struct info_data *data, struct object_file *o,
 	if (o->num_applied_patch == 0 && !patch_found)
 		return 0;
 
-	if (!*pid_printed) {
-		printf("pid=%d comm=%s\n", pid, proc->comm);
-		*pid_printed = 1;
-	}
-
-	printf("process = %s; buildid = %s; applied patch number = %ld:\n", o->name, buildid, o->num_applied_patch);
+	printf("%-25s %d\n", "Pid:", pid);
+	printf("%-25s %s\n", "Process:", o->name);
+	printf("%-25s %s\n", "Build id:", buildid);
+	printf("%-25s %ld\n", "Applied patch number:", o->num_applied_patch);
 	list_for_each_entry(applied_patch, &o->applied_patch, list) {
-		printf("%d. patch->id = %s\n", i, applied_patch->patch_file->kpfile.patch->id);
-		i++;
+		printf("%-25s %s\n", "Patch id:", applied_patch->patch_file->kpfile.patch->id);
 	}
 
 	if (storage_patch_found(patch) && patch->patchlevel) {
@@ -347,7 +345,7 @@ object_info(struct info_data *data, struct object_file *o,
 static int
 process_info(int pid, void *_data)
 {
-	int ret, pid_printed = 0;
+	int ret;
 	kpatch_process_t _proc, *proc = &_proc;
 	struct info_data *data = _data;
 	struct object_file *o;
@@ -366,11 +364,9 @@ process_info(int pid, void *_data)
 
 
 	list_for_each_entry(o, &proc->objs, list)
-		if (object_info(data, o, &pid_printed))
+		if (object_info(data, o))
 			break;
 
-	if (pid_printed && data->print_description)
-		printf("========================================\n");
 out:
 	kpatch_process_free(proc);
 
