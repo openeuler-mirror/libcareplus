@@ -8,6 +8,7 @@ Usage:	libcare-patch-make [-h|--help] [-u|--update || -c|--clean]
 	[-s|--srcdir=SRCDIR] \
 	[-d|--destdir=DESTDIRVAR] \
 	[-i|--id=PATCH-ID] \
+	[-b|--buildid=BUILD-ID] \
 	[-j|--jobs=<number of jobs>] \
 	PATCH1 PATCH2 ...
 
@@ -20,6 +21,7 @@ install with specified DESTDIR.
   -d --destdir	specify variable makefile system uses to specify destination
 		directory for the installation
   -i --id>-give this patch an unique id (less than 7 char)
+  -b --buildid	give this patch an unique build-id
   -j --jobs 	specify variable makefile system jobs of compile, for example
   		`make -j 4` is startup `4` jobs to compile.
 EOF
@@ -140,6 +142,10 @@ build_kpatches() {
 
 		test -n "$buildid" || continue
 
+		if [ ! -z ${build_id} ];then
+		    buildid=${build_id}
+		fi
+
 		chmod u+w "${origexec}" "${patchedexec}"
 		$KPATCH_PATH/kpatch_strip --strip "${patchedexec}" \
 			"${patchedexec}.stripped" >/dev/null
@@ -157,7 +163,7 @@ build_kpatches() {
 main() {
 	PROG_NAME=$(basename $0)
 
-	TEMP=$(getopt -o s:ucd:i:j: --long srcdir:,update,clean,destdir:,id:,jobs: -n ${PROG_NAME} -- "$@" || usage 1)
+	TEMP=$(getopt -o s:ucd:i:b:j: --long srcdir:,update,clean,destdir:,id:,buildid:,jobs: -n ${PROG_NAME} -- "$@" || usage 1)
 	eval set -- "$TEMP"
 
 	destdir="DESTDIR"
@@ -184,6 +190,11 @@ main() {
 		-i|--id)
 			shift
 			patch_id="$1"
+			shift
+			;;
+		-b|--buildid)
+			shift
+			build_id="$1"
 			shift
 			;;
 		-j|--jobs)
