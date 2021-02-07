@@ -111,12 +111,12 @@ libexecdir ?= /usr/local/libexec
 INSTALL ?= install
 install: all
 	$(INSTALL) -d $(DESTDIR)/$(bindir)
-	$(INSTALL) -m 0755 libcare-ctl $(DESTDIR)/$(bindir)/libcare-ctl
-	$(INSTALL) -m 0755 libcare-client $(DESTDIR)/$(bindir)/libcare-client
-	$(INSTALL) -m 0755 libcare-cc $(DESTDIR)/$(bindir)/libcare-cc
-	$(INSTALL) -m 0755 libcare-patch-make $(DESTDIR)/$(bindir)/libcare-patch-make
-	$(INSTALL) -m 0755 kpatch_gensrc $(DESTDIR)/$(bindir)/kpatch_gensrc
-	$(INSTALL) -m 0755 kpatch_make $(DESTDIR)/$(bindir)/kpatch_make
-	$(INSTALL) -m 0755 kpatch_strip $(DESTDIR)/$(bindir)/kpatch_strip
+	$(INSTALL) -m 0500 libcare-ctl $(DESTDIR)/$(bindir)/libcare-ctl
+	$(INSTALL) -m 0500 libcare-client $(DESTDIR)/$(bindir)/libcare-client
+	$(INSTALL) -m 0500 libcare-cc $(DESTDIR)/$(bindir)/libcare-cc
+	$(INSTALL) -m 0500 libcare-patch-make $(DESTDIR)/$(bindir)/libcare-patch-make
+	$(INSTALL) -m 0500 kpatch_gensrc $(DESTDIR)/$(bindir)/kpatch_gensrc
+	$(INSTALL) -m 0500 kpatch_make $(DESTDIR)/$(bindir)/kpatch_make
+	$(INSTALL) -m 0500 kpatch_strip $(DESTDIR)/$(bindir)/kpatch_strip
 
 .PHONY:	all clean test tests tests-gensrc tests-strip
