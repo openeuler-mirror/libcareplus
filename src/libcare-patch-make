@@ -83,7 +83,7 @@ build_objects() {
 	test $jobs_make && JOBS_MAKE="-j $jobs_make"
 
 	if test -n "$do_clean"; then
-		make $LPMAKEFILE clean >$MAKE_OUTPUT 2>&1
+		make $LPMAKEFILE $JOBS_MAKE clean >$MAKE_OUTPUT 2>&1
 		rm -rf "$LPMAKE_ORIGINAL_DIR" "$LPMAKE_PATCHED_DIR"
 	fi
 
@@ -94,7 +94,7 @@ build_objects() {
 	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
 
 	echo "${green}INSTALLING ORIGINAL OBJECTS INTO $LPMAKE_ORIGINAL_DIR${reset}"
-	make $LPMAKEFILE install				\
+	make $LPMAKEFILE $JOBS_MAKE install			\
 		"$destdir=$LPMAKE_ORIGINAL_DIR"			\
 		>$MAKE_OUTPUT 2>&1
 
@@ -120,7 +120,7 @@ build_objects() {
 	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
 
 	echo "${green}INSTALLING PATCHED OBJECTS INTO $LPMAKE_PATCHED_DIR${reset}"
-	make $LPMAKEFILE install				\
+	make $LPMAKEFILE $JOBS_MAKE install			\
 		"$destdir=$LPMAKE_PATCHED_DIR"			\
 		>$MAKE_OUTPUT 2>&1
 }
