@@ -4,9 +4,9 @@
 #include <errno.h>
 #include <libgen.h>
 
-#include "kpatch_log.h"
-#include "kpatch_io.h"
-#include "kpatch_str.h"
+#include "include/kpatch_log.h"
+#include "include/kpatch_io.h"
+#include "include/kpatch_str.h"
 
 void *kp_realloc(void *p, int oldsz, int newsz)
 {

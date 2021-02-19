@@ -4,9 +4,9 @@
 
 #include <gelf.h>
 
-#include "kpatch_common.h"
-#include "kpatch_elf_objinfo.h"
-#include "kpatch_log.h"
+#include "include/kpatch_common.h"
+#include "include/kpatch_elf_objinfo.h"
+#include "include/kpatch_log.h"
 
 const char *kpatch_objinfo_strptr(kpatch_objinfo *oi, int type, size_t nameidx)
 {

@@ -21,7 +21,7 @@
   linux/lib/rbtree.c
 */
 
-#include "rbtree.h"
+#include "include/rbtree.h"
 
 /*
  * red-black trees properties:  http://en.wikipedia.org/wiki/Rbtree

@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "kpatch_parse.h"
-#include "kpatch_str.h"
-#include "kpatch_dbgfilter.h"
+#include "include/kpatch_parse.h"
+#include "include/kpatch_str.h"
+#include "include/kpatch_dbgfilter.h"
 
 static int is_cold_hot(char *s)
 {

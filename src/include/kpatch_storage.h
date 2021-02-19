@@ -1,8 +1,9 @@
-#ifndef __KPATCH_USER__
-#define __KPATCH_USER__
+#ifndef __KPATCH_STORAGE__
+#define __KPATCH_STORAGE__
 
 #include "kpatch_common.h"
 #include "kpatch_file.h"
+#include "kpatch_process.h"
 #include "rbtree.h"
 
 struct kpatch_storage_patch {
@@ -44,7 +45,22 @@ struct kpatch_storage {
 
 typedef struct kpatch_storage kpatch_storage_t;
 
-int cmd_patch_user(int argc, char *argv[]);
-int cmd_unpatch_user(int argc, char *argv[]);
+int storage_init(kpatch_storage_t *storage,
+	     const char *fname);
+void storage_free(kpatch_storage_t *storage);
+
+enum {
+	PATCH_OPEN_ERROR = -1,
+	PATCH_NOT_FOUND = 0,
+	PATCH_FOUND = 1,
+};
+int storage_lookup_patches(kpatch_storage_t *storage, kpatch_process_t *proc);
+int storage_have_patch(kpatch_storage_t *storage, const char *buildid,
+		   struct kpatch_storage_patch **ppatch);
+int storage_patch_found(struct kpatch_storage_patch *patch);
+int storage_execute_before_script(kpatch_storage_t *storage, kpatch_process_t *proc);
+int storage_execute_after_script(kpatch_storage_t *storage, kpatch_process_t *proc);
+char *storage_get_description(kpatch_storage_t *storage,
+			struct kpatch_storage_patch *patch);
 
 #endif

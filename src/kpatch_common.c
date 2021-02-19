@@ -6,9 +6,9 @@
 #include <errno.h>
 #include <unistd.h>
 
-#include "kpatch_file.h"
-#include "kpatch_common.h"
-#include "kpatch_log.h"
+#include "include/kpatch_file.h"
+#include "include/kpatch_common.h"
+#include "include/kpatch_log.h"
 
 int kpatch_openat_file(int atfd, const char *fname, struct kp_file *kpatch)
 {

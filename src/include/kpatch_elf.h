@@ -1,6 +1,7 @@
 #ifndef __KPATCH_ELF__
 #define __KPATCH_ELF__
 
+#include <gelf.h>
 #include "kpatch_process.h"
 
 const char *kpatch_get_buildid(struct object_file *o);
@@ -42,5 +43,11 @@ struct kpatch_jmp_table {
 
 	struct kpatch_jmp_table_entry entries[0];
 };
+
+unsigned long kpatch_arch_add_jmp_entry(struct object_file *o, unsigned long addr);
+
+char *secname(GElf_Ehdr *ehdr, GElf_Shdr *s);
+int is_undef_symbol(const Elf64_Sym *sym);
+int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec);
 
 #endif

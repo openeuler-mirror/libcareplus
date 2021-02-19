@@ -4,7 +4,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "kpatch_log.h"
+#include "include/kpatch_log.h"
 
 int log_level = LOG_INFO;
 int log_indent;

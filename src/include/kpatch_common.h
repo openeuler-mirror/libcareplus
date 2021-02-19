@@ -41,4 +41,21 @@ int kpatch_close_file(struct kp_file *kpatch);
 #	define R_X86_64_GOTPCRELX	0x29
 #endif
 
+static inline int page_shift(int n) {
+	int res = -1;
+
+	while(n) {
+		res++;
+		n >>= 1;
+	}
+
+	return res;
+}
+
+#ifndef PAGE_SIZE
+#define PAGE_SIZE getpagesize()
+#define PAGE_MASK (~(PAGE_SIZE-1))
+#define PAGE_SHIFT page_shift(PAGE_SIZE)
+#endif
+
 #endif

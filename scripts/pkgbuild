@@ -17,6 +17,7 @@ die() {
 usage() {
 	echo "Usage: build [--prebuild] [--help] [--arch ARCH] DIR"
 	echo "    -p|--prebuild     prebuild project for further use"
+	echo "    -t|--test         run unit and stress tests"
 	echo "    -a|--arch ARCH    target architecture(x86_64 by default)"
 	echo "    -h|--help         print this message"
 	echo "    DIR               directory with project's info file and other resources"
@@ -31,6 +32,9 @@ prepare() {
 		case $1 in
 		-p|--prebuild)
 			ACTION=prebuild
+			;;
+		-t|--test)
+			ACTION=test
 			;;
 		-a|--arch)
 			shift
@@ -54,8 +58,9 @@ prepare() {
 
 	# Export env vars that are needed during the build
 	SCRIPTS="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-	SPWD="$(realpath $SCRIPTS/../)"
-	export KPATCH_PATH=$SPWD/src
+	LIBCARE_DIR="${LIBCARE_DIR:-$SCRIPTS/..}"
+	KPATCH_PATH="${KPATCH_PATH:-$LIBCARE_DIR/src}"
+	export LIBCARE_DIR KPATCH_PATH
 	export OLDPATH=$PATH
 	export KPATCH_PASSTHROUGH_ASM=1
 	CPUS=`cat /proc/cpuinfo | grep ^processor | wc -l`
@@ -71,6 +76,11 @@ prepare() {
 clean_dirs() {
 	echo "  cleaning up"
 	rm -rf $KP_PROJECT_BUILD_ROOT /root/root.original /root/root.patched
+}
+
+kp_prepare_env_hook() {
+	# use this to add repos
+	:
 }
 
 kp_pack_prebuilt() {
@@ -99,7 +109,11 @@ kp_prepare_source_raw() {
 
 kp_download_source_rpm() {
 	mkdir -p /kcdata
-	curl $KP_PROJECT_SOURCE_URL -o /kcdata/$KP_PROJECT_SOURCE
+	if test -n "$KP_PROJECT_SOURCE_URL"; then
+		curl $KP_PROJECT_SOURCE_URL -o /kcdata/$KP_PROJECT_SOURCE
+	else
+		yumdownloader --source --destdir /kcdata ${KP_PROJECT_SOURCE%.src.rpm}
+	fi
 }
 
 kp_prepare_source_rpm() {
@@ -115,7 +129,8 @@ kp_prepare_source_rpm() {
 
 	sed -i 's/.rpm$//g' $KP_PROJECT_BUILD_ROOT/dependencies.txt
 
-	rpm -ivh /kcdata/$KP_PROJECT_SOURCE
+	rpm -ivh /kcdata/$KP_PROJECT_SOURCE \
+		--define "_topdir $KP_PROJECT_BUILD_ROOT"
 }
 
 kp_prepare_source_deb() {
@@ -124,18 +139,20 @@ kp_prepare_source_deb() {
 }
 
 kp_prepare_source() {
-	echo "  downloading source for $KP_PROJECT"
-	kp_download_source_$KP_PROJECT_FORMAT
+	if ! test -f /kcdata/$KP_PROJECT_SOURCE; then
+		echo "  downloading source for $KP_PROJECT"
+		kp_download_source_$KP_PROJECT_FORMAT
+	fi
 	echo "  preparing source for $KP_PROJECT"
 	kp_prepare_source_$KP_PROJECT_FORMAT
 }
 
 kp_patch_source() {
 	echo "  patching project"
-	PATCH_DIR=$SPWD/patches
+	PATCH_DIR=$LIBCARE_DIR/patches
 	#patch_list_apply requires this dir
 	mkdir -p /tmp/build.kpatch
-	$SPWD/scripts/patch_list_apply $KP_PROJECT_DIR $PDIR/plist $PATCH_DIR
+	$SCRIPTS/patch_list_apply $KP_PROJECT_DIR $PDIR/plist $PATCH_DIR
 }
 
 kp_prebuild_rpm() {
@@ -147,6 +164,7 @@ kp_prebuild_rpm() {
 	eval rpmbuild --nocheck --noclean 				\
 		-bc 							\
 		$KP_RPMBUILD_FLAGS					\
+		'--define "_topdir $KP_PROJECT_BUILD_ROOT"'		\
 		$KP_PROJECT_BUILD_ROOT/SPECS/$KP_PROJECT_SPEC 2>&1 |	\
 		tee $KP_PROJECT_BUILD_ROOT/prebuild.log
 }
@@ -232,13 +250,18 @@ kp_build_rpm() {
 		--short-circuit					\
 		-bc						\
 		$KP_RPMBUILD_FLAGS				\
-		$KP_PROJECT_BUILD_ROOT/SPECS/$KP_PROJECT_SPEC
+		'--define "_topdir $KP_PROJECT_BUILD_ROOT"'	\
+		$KP_PROJECT_BUILD_ROOT/SPECS/$KP_PROJECT_SPEC 2>&1 |
+		tee $KP_PROJECT_BUILD_ROOT/build.log
 }
 
-kp_install_generic() {
-	local ROOT_PATCHED="$HOME/root.patched"
+kp_install_files() {
+	local src="$1"
+	local dest="$2"
+	local direction="$3"
+	local files="$4"
 
-	eval set -- $KP_INSTALL_FILES
+	eval set -- $files
 	while test -n "$1"; do
 		local buildpath="$1"
 		local installpath="$2"
@@ -248,12 +271,16 @@ kp_install_generic() {
 			continue
 		fi
 
-		installpath="$ROOT_PATCHED/$installpath"
-
-		mkdir -p "$(dirname "$installpath")"
-
-		/bin/cp -ra $KP_PROJECT_BUILD_DIR/$buildpath $installpath
+		if test $direction = "from_prebuild"; then
+			install -D $src/$buildpath $dest/$installpath
+		else
+			install -D $src/$installpath $dest/$buildpath
+		fi
 	done
+}
+
+kp_check_missing_files() {
+	local builddir="$1"
 
 	local failed=
 	pushd $KP_PROJECT_BUILD_DIR
@@ -278,6 +305,16 @@ kp_install_generic() {
 	if test -n "$failed"; then
 		die "Files $failed patched but are not listed, aborting"
 	fi
+}
+
+kp_install_generic() {
+	local root_patched="$HOME/root.patched"
+
+	kp_install_files $KP_PROJECT_BUILD_DIR \
+		$root_patched \
+		"from_prebuild" \
+		"$KP_INSTALL_FILES"
+	kp_check_missing_files $KP_PROJECT_BUILD_DIR
 }
 
 kp_install_rpm() {
@@ -352,14 +389,41 @@ kp_pack_patch() {
 	popd
 }
 
+kp_unpack_patch() {
+	local tmpdir=$(mktemp -d --tmpdir)
+
+	echo "  unpacking patches for $KP_PROJECT into $KP_PROJECT_BUILD_ROOT/storage"
+
+	tar -xf /kcdata/$KP_PROJECT_PATCH -C $tmpdir
+
+	find $tmpdir -name \*.kpatch > $tmpdir/patchlist
+
+	while read patchfile; do
+		local patchname=${patchfile##*/}
+		local buildid=${patchname%.kpatch}
+
+		local KP_STORAGE=$KP_PROJECT_BUILD_ROOT/storage/$buildid
+
+		mkdir -p $KP_STORAGE/1
+		cp $patchfile $KP_STORAGE/1/kpatch.bin
+		ln -rs $KP_STORAGE/1 $KP_STORAGE/latest
+	done < $tmpdir/patchlist
+
+	rm -fr $tmpdir
+}
+
+kp_mark_tests_fail() {
+	touch /kcdata/Tests-FAIL
+}
+
 overwrite_utils() {
 	TMPBIN=$(mktemp -d --tmpdir)
 
 	mkdir $TMPBIN/bin
-	ln -fs /libcare/src/libcare-cc $TMPBIN/gcc
-	ln -fs /libcare/src/libcare-cc $TMPBIN/cc
-	ln -fs /libcare/src/libcare-cc $TMPBIN/g++
-	ln -fs /libcare/src/libcare-cc $TMPBIN/c++
+	ln -fs $KPATCH_PATH/libcare-cc $TMPBIN/gcc
+	ln -fs $KPATCH_PATH/libcare-cc $TMPBIN/cc
+	ln -fs $KPATCH_PATH/libcare-cc $TMPBIN/g++
+	ln -fs $KPATCH_PATH/libcare-cc $TMPBIN/c++
 	if ! test -x /usr/bin/g++; then
 		rm -f $TMPBIN/g++
 	fi
@@ -371,10 +435,16 @@ overwrite_utils() {
 	fi
 
 	export PATH=$TMPBIN:$PATH
+
+	if test "$(command -v cc)" != "$TMPBIN/cc"; then
+		echo "Can't install our wrappers, missing?"
+		exit 1
+	fi
 }
 
 kp_patch_test() {
-	:
+	echo "Empty kp_patch_test called, override it!"
+	exit 1
 }
 
 main() {
@@ -386,20 +456,27 @@ main() {
 
 	overwrite_utils
 
-	if [ "$ACTION" == "prebuild" ]; then
+	kp_prepare_env_hook
+
+	if test "$ACTION" == "prebuild"; then
 		kp_prepare_source
 		kp_prebuild_hook
 		kp_prebuild
 		kp_pack_prebuilt
-	else
+	elif test "$ACTION" == "build"; then
 		kp_unpack_prebuilt
 		kp_patch_source
 		kp_build_hook
 		kp_build
 		kp_sanity_check
 		kp_gen_kpatch
-		kp_patch_test
 		kp_pack_patch
+	elif test "$ACTION" == "test"; then
+		kp_unpack_prebuilt
+		kp_prepare_test_binaries
+		kp_unpack_patch
+		#kp_patch_source
+		kp_patch_test
 	fi
 
 	#clean_dirs

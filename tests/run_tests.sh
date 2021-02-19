@@ -3,7 +3,23 @@
 set -e
 
 wait_file() {
-	while ! test -s $1; do sleep ${2-1}; done
+	local file="$1"
+	local pause="${2-1}"
+	local i=0
+	local timeout=60
+
+	while test $i -lt $timeout; do
+		if test -s $file; then
+			break
+		fi
+		sleep $pause
+		i=$((i + 1))
+	done
+
+	if test $i -eq $timeout; then
+		return 1
+	fi
+
 	return 0
 }
 
@@ -89,6 +105,10 @@ check_result() {
 			! grep_tail 'UNPATCHED'
 			return $?
 			;;
+		fail_unpatch)
+			grep_tail '\<PATCHED'
+			return $?
+			;;
 		fail_*)
 			grep_tail 'UNPATCHED'
 			return $?
@@ -147,9 +167,24 @@ test_patch_files_fini() {
 
 
 check_result_unpatch() {
+	local testname="$1"
 	local outfile="$2"
+
 	check_result "$@"
-	test $? -ne "$(cat ${outfile}_patched)"
+	test $? -eq 0
+	local is_unpatched=$?
+
+	test "$(cat ${outfile}_patched)" -eq 1
+	local was_patched=$?
+
+	case $testname in
+		fail_unpatch)
+			test $is_unpatched -eq 0 && test $was_patched -eq 1
+			;;
+		*)
+			test $is_unpatched -eq 1 && test $was_patched -eq 1
+			;;
+	esac
 }
 
 test_unpatch_files_init() {
@@ -184,9 +219,11 @@ test_unpatch_files() {
 
 	check_result $testname $outfile
 	echo $? >${outfile}_patched
+	cat ${outfile}_patched
 
+	echo "============unpatching===============" >>$logfile
 	libcare_ctl unpatch-user -p $pid \
-		>$logfile 2>&1 || :
+		>>$logfile 2>&1 || :
 
 	sleep 2
 

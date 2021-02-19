@@ -55,7 +55,10 @@ int kpatch_ptrace_detach(struct kpatch_ptrace_ctx *pctx);
 int kpatch_ptrace_handle_ld_linux(kpatch_process_t *proc,
 				  unsigned long *pentry_point);
 
-int kpatch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc);
+
+int wait_for_stop(struct kpatch_ptrace_ctx *pctx, void *data);
+int get_threadgroup_id(int tid);
+int kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc);
 int kpatch_ptrace_get_entry_point(struct kpatch_ptrace_ctx *pctx,
 				  unsigned long *pentry_point);
 
@@ -70,7 +73,7 @@ int kpatch_execute_remote(struct kpatch_ptrace_ctx *pctx,
 			  size_t codelen,
 			  struct user_regs_struct *pregs);
 
-int kpatch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
+int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
 				unsigned long *addr);
 unsigned long
 kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
@@ -84,6 +87,8 @@ int
 kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
 		     unsigned long addr,
 		     size_t length);
+
+#define MAX_ERRNO	4095
 int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned long *addr);
 
 int
@@ -102,4 +107,44 @@ kpatch_process_memcpy(kpatch_process_t *proc,
 		      unsigned long dst,
 		      unsigned long src,
 		      size_t size);
+
+#define BREAK_INSN_LENGTH	1
+#define BREAK_INSN		{0xcc}
+
+#define SEC_TO_MSEC	1000
+#define MSEC_TO_NSEC	1000000
+
+#define for_each_thread(proc, pctx)	\
+	list_for_each_entry(pctx, &proc->ptrace.pctxs, list)
+
+struct kpatch_ptrace_ctx *
+kpatch_ptrace_find_thread(kpatch_process_t *proc,
+			  pid_t pid,
+			  unsigned long rip);
+
+int
+kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
+		      struct timespec *timeout,
+		      const sigset_t *sigset);
+
+void copy_regs(struct user_regs_struct *dst,
+		      struct user_regs_struct *src);
+
+int
+kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
+			   const unsigned char *code,
+			   size_t codelen,
+			   struct user_regs_struct *pregs,
+			   int (*func)(struct kpatch_ptrace_ctx *pctx,
+				       void *data),
+			   void *data);
+
+int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
+		unsigned long arg1, unsigned long arg2, unsigned long arg3,
+		unsigned long arg4, unsigned long arg5, unsigned long arg6,
+		unsigned long *res);
+
+int wait_for_mmap(struct kpatch_ptrace_ctx *pctx,
+	      unsigned long *pbase);
+
 #endif
