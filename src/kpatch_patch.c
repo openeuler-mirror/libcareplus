@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.07 - time: add frozen time count for patch/unpatch
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -307,6 +310,7 @@ static int
 object_apply_patch(struct object_file *o)
 {
 	struct kpatch_file *kp;
+	struct object_file *applied_patch;
 	size_t sz, i;
 	int undef, ret;
 
@@ -319,7 +323,9 @@ object_apply_patch(struct object_file *o)
 		return -1;
 	}
 
-	if (kpatch_object_check_duplicate_id(o, (const char *)o->kpfile.patch->id)) {
+	applied_patch = kpatch_object_get_applied_patch_by_id(o,
+		(const char *)o->kpfile.patch->id);
+	if (applied_patch) {
 		kplogerror("A patch with patch-id(%s) is already applied by %s",
 			   o->kpfile.patch->id, o->name);
 		return -1;
@@ -540,7 +546,7 @@ object_find_applied_patch_info(struct object_file *o)
 	else
 		return -1;
 
-	applied_patch = kpatch_object_find_applied_patch(o, patch_id);
+	applied_patch = kpatch_object_get_applied_patch_by_id(o, patch_id);
 	if (!applied_patch) {
 		fprintf(stderr, "Failed to find target applied patch!\n");
 		return -1;

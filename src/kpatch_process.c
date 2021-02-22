@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.07 - process: add some checks before patching
  * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
@@ -1153,17 +1156,18 @@ kpatch_process_get_obj_by_regex(kpatch_process_t *proc, const char *regex)
 	return found;
 }
 
-int
-kpatch_object_check_duplicate_id(struct object_file *o, const char *patch_id)
+struct object_file *
+kpatch_object_get_applied_patch_by_id(struct object_file *o,
+                                            const char *patch_id)
 {
 	struct obj_applied_patch *applied_patch;
 
 	list_for_each_entry(applied_patch, &o->applied_patch, list) {
 		if (!strcmp(patch_id, applied_patch->patch_file->kpfile.patch->id))
-			return 1;
+			return applied_patch->patch_file;
 	}
 
-	return 0;
+	return NULL;
 }
 
 int
@@ -1177,7 +1181,7 @@ kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new)
 		return -1;
 
 	patch_id = new->kpfile.patch->id;
-	if (kpatch_object_check_duplicate_id(o, patch_id)) {
+	if (kpatch_object_get_applied_patch_by_id(o, patch_id)) {
 		free(patch);
 		return 0;
 	}
@@ -1187,19 +1191,4 @@ kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new)
 	o->num_applied_patch++;
 
 	return 0;
-}
-
-struct object_file *
-kpatch_object_find_applied_patch(struct object_file *o, const char *patch_id)
-{
-	struct obj_applied_patch *applied_patch;
-	struct object_file *target = NULL;
-
-	list_for_each_entry(applied_patch, &o->applied_patch, list) {
-		target = applied_patch->patch_file;
-		if (!strcmp(target->kpfile.patch->id, patch_id))
-			return target;
-	}
-
-	return NULL;
 }

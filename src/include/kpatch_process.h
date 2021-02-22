@@ -1,9 +1,12 @@
 /******************************************************************************
+ * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
  * 2021.09.23 - libcare-ctl: implement applied patch list
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #ifndef __KPATCH_PROCESS__
@@ -235,8 +238,8 @@ unsigned long object_find_patch_region(struct object_file *obj,
 			 size_t memsize,
 			 struct vm_hole **hole);
 
-int kpatch_object_check_duplicate_id(struct object_file *o, const char *patch_id);
+struct object_file *
+kpatch_object_get_applied_patch_by_id(struct object_file *o, const char *patch_id);
 int kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new);
-struct object_file * kpatch_object_find_applied_patch(struct object_file *o, const char *patch_id);
 
 #endif /* ifndef __KPATCH_PROCESS__ */
