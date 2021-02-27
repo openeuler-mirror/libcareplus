@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.08 - process_unpatch: adapt return value
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.07 - kpatch_object: combine funcitons with similar function
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -623,7 +626,10 @@ object_unapply_patch(struct object_file *o, int check_flag)
 				   o->kpta,
 				   o->kpfile.size);
 
-	return ret;
+	if (ret < 0)
+		return ret;
+
+	return 1;
 }
 
 static int
@@ -716,13 +722,15 @@ out:
 	frozen_time = GET_MICROSECONDS(end_tv, start_tv);
 	kpinfo("PID '%d' process unpatch frozen_time is %ld microsecond\n", pid, frozen_time);
 
-	if (ret < 0)
+	if (ret < 0) {
 		printf("Failed to cancel patches for %d\n", pid);
-	else if (ret == 0)
+		return ret;
+	} else if (ret == 0) {
 		printf("No patch(es) cancellable from PID '%d' were found\n", pid);
-	else
+	} else {
 		printf("%d patch hunk(s) were successfully cancelled from PID '%d'\n", ret, pid);
+	}
 
-	return ret;
+	return 0;
 }
 
