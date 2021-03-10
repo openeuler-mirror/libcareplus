@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - process_unpatch: adapt return value
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -344,6 +347,9 @@ object_apply_patch(struct object_file *o)
 	undef = kpatch_count_undefined(o);
 	if (undef) {
 		o->jmp_table = kpatch_new_jmp_table(undef);
+		if (o->jmp_table == NULL) {
+			return -1;
+		}
 		kp->jmp_offset = sz;
 		kpinfo("Jump table %d bytes for %d syms at offset 0x%x\n",
 		       o->jmp_table->size, undef, kp->jmp_offset);

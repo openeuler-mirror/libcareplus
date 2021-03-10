@@ -1,15 +1,18 @@
 /******************************************************************************
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.07 - aarch64/arch_elf: Add ldr and ldrb relocation for aarch64
- * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-18
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
  * 2021.10.07 - aarch64/arch_elf: Add R_AARCH64_LDST32_ABS_LO12_NC relocation type for arm
- * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-16
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com>
  *
  * 2021.09.23 - tls: add support for tls symbol
- * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-15
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
  * 2021.09.23 - arch/aarch64/arch_elf: Add LDR and B instruction relocation
- * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-13
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com>
  ******************************************************************************/
 
 #include <stdlib.h>
@@ -167,7 +170,8 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
 {
 	struct kpatch_file *kp = o->kpfile.patch;
 	GElf_Ehdr *ehdr = (void *)kp + kp->kpatch_offset;
-	GElf_Shdr *shdr = (void *)ehdr + ehdr->e_shoff, *symhdr;
+	GElf_Shdr *shdr = (void *)ehdr + ehdr->e_shoff;
+	GElf_Shdr *symhdr = NULL;
 	GElf_Rela *relocs = (void *)ehdr + relsec->sh_offset;
 	GElf_Shdr *tshdr = shdr + relsec->sh_info;
 	void *t = (void *)ehdr + shdr[relsec->sh_info].sh_offset;
@@ -180,6 +184,11 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
 			symhdr = &shdr[i];
 	}
 
+	if (symhdr == NULL) {
+		kperr("symhdr is null, failed to do relocations.\n");
+		return -1;
+	}
+
 	scnname = secname(ehdr, shdr + relsec->sh_info);
 	kpdebug("applying relocations to '%s'\n", scnname);
 	is_kpatch_info = strcmp(scnname, ".kpatch.info") == 0;
@@ -190,10 +199,11 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
 		unsigned long val;
 		void *loc, *loc2;
 
-		if (r->r_offset < 0 || r->r_offset >= tshdr->sh_size)
+		if (r->r_offset < 0 || r->r_offset >= tshdr->sh_size) {
 			kpfatalerror("Relocation offset for section '%s'"
 				     " is at 0x%lx beyond the section size 0x%lx\n",
 				     scnname, r->r_offset, tshdr->sh_size);
+		}
 
 		/* Location in our address space */
 		loc = t + r->r_offset;

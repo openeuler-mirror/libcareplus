@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -444,6 +449,10 @@ struct kpatch_jmp_table *kpatch_new_jmp_table(int entries)
 	size_t sz = sizeof(*jtbl) + entries * sizeof(struct kpatch_jmp_table_entry);
 
 	jtbl = malloc(sz);
+	if (jtbl == NULL) {
+		kperr("Failed to malloc jump table !\n");
+		return NULL;
+	}
 	memset(jtbl, 0, sz);
 	jtbl->size = sz;
 	jtbl->max_entry = entries;
@@ -520,13 +529,16 @@ sym_name_cmp(const void *a_, const void *b_, void *s_)
 static int
 elf_object_load_dynsym(struct object_file *o)
 {
-	int rv;
+	int rv = -1;
+	int ret = -1;
 	size_t i;
 	Elf64_Dyn *dynamics = NULL;
 	char *buffer = NULL;
 	Elf64_Phdr *phdr;
-	unsigned long symtab_addr, strtab_addr;
-	unsigned long symtab_sz, strtab_sz;
+	unsigned long symtab_addr = 0;
+	unsigned long strtab_addr = 0;
+	unsigned long symtab_sz = 0;
+	unsigned long strtab_sz = 0;
 
 	if (o->dynsyms != NULL)
 		return 0;
@@ -578,11 +590,13 @@ elf_object_load_dynsym(struct object_file *o)
 		}
 	}
 
+	/* Note strtab_addr, strtab_addr, strtab_sz should always have been assigned by curdyn */
 	symtab_sz = (strtab_addr - symtab_addr);
 
 	buffer = malloc(strtab_sz + symtab_sz);
-	if (buffer == NULL)
+	if (buffer == NULL) {
 		goto out_free;
+	}
 
 	rv = kpatch_process_mem_read(o->proc,
 				     symtab_addr,
@@ -594,7 +608,9 @@ elf_object_load_dynsym(struct object_file *o)
 	o->dynsyms = (Elf64_Sym*) buffer;
 	o->ndynsyms = symtab_sz / sizeof(Elf64_Sym);
 	o->dynsymnames = malloc(sizeof(char *) * o->ndynsyms);
-
+	if (o->dynsymnames == NULL) {
+		goto out_free;
+	}
 	qsort_r((void *)o->dynsyms, o->ndynsyms, sizeof(Elf64_Sym),
 		sym_name_cmp, buffer + symtab_sz);
 
@@ -604,14 +620,15 @@ elf_object_load_dynsym(struct object_file *o)
 		o->dynsymnames[i] = buffer + symtab_sz + o->dynsyms[i].st_name;
 	}
 	o->ndynsyms = i;
-
+	ret = 0;
 
 out_free:
-	if (rv < 0)
+	if (rv < 0) {
 		free(buffer);
+	}
 	free(dynamics);
 
-	return rv;
+	return ret;
 }
 
 /* TODO reuse kpatch_cc */

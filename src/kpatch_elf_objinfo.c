@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +53,8 @@ int kpatch_objinfo_load(kpatch_objinfo *oi)
 		const char *secname;
 		GElf_Shdr shdr;
 		Elf_Scn *scn = NULL;
+
+		memset(&shdr, 0, sizeof(GElf_Shdr));
 
 		scn = kpatch_objinfo_getshdr(oi, i, &shdr);
 		if (scn == NULL)
