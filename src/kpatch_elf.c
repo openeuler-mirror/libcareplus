@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  ******************************************************************************/
@@ -776,7 +779,9 @@ int kpatch_resolve(struct object_file *o)
 	GElf_Ehdr *ehdr;
 	GElf_Shdr *shdr;
 	GElf_Sym *sym;
-	int i, symidx, rv;
+	int i;
+	int rv;
+	int symidx = -1;
 	char *strsym;
 
 	ehdr = (void *)o->kpfile.patch + o->kpfile.patch->kpatch_offset;
@@ -807,6 +812,10 @@ int kpatch_resolve(struct object_file *o)
 		kpdebug("section '%s' = 0x%lx\n", secname(ehdr, s), s->sh_addr);
 	}
 
+	if (symidx == -1) {
+		kperr("Unexpected symidx!\n");
+		return -1;
+	}
 	kpdebug("Resolving symbols for '%s'\n", o->name);
 	sym = (void *)ehdr + shdr[symidx].sh_offset;
 	strsym = (void *)ehdr + shdr[shdr[symidx].sh_link].sh_offset;

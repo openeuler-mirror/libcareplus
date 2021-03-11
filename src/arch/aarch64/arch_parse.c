@@ -1,9 +1,12 @@
 /******************************************************************************
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.09.23 - arch/aarch64/arch_parse: improve VAR_CBLOCK start indentify
- * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-14
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com>
  *
  * 2021.09.23 - arch/aarch64/arch_parse: modify is_variable_start function for gensrc in arm
- * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com> - 0.1.4-10
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com>
  ******************************************************************************/
 
 #include <stdlib.h>
@@ -19,6 +22,7 @@ int is_function_start(struct kp_file *f, int l, kpstr_t *nm)
 	int l0 = l, func = 0;
 
 	kpstrset(nm, "", 0);
+	kpstrset(&attr, "", 0);
 	for (; l < f->nr_lines; l++) {
 		if (l != l0 && cline(f, l)[0] == '\0')
 			continue;
@@ -116,6 +120,7 @@ int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm
 	nm2.s = NULL;
 
 	kpstrset(nm, "", 0);
+	kpstrset(&attr, "", 0);
 	for ( ; cline(f, l); l++) {
 
 		/* first verify that all the commands we met has the same symbol name... just to be safe! */

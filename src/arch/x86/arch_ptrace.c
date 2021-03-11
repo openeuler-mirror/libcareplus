@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -32,7 +37,8 @@
 int
 kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 {
-	int ret, pid = 0;
+	int ret = 0;
+	int pid = 0;
 	struct kpatch_ptrace_ctx *pctx, *ptmp, *execve_pctx = NULL;
 	long rv;
 
@@ -56,7 +62,7 @@ kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 	/* Send a message to our `execve` wrapper so it will continue
 	 * execution
 	 */
-	ret = send(proc->send_fd, &ret, sizeof(ret), 0);
+	ret = send(proc->send_fd, &ret, sizeof(int), 0);
 	if (ret < 0) {
 		kplogerror("send failed\n");
 		return ret;
@@ -192,6 +198,7 @@ int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 	};
 	int ret;
 
+	memset(&regs, 0, sizeof(struct user_regs_struct));
 	kpdebug("Executing syscall %d (pid %d)...\n", nr, pctx->pid);
 	regs.rax = (unsigned long)nr;
 	regs.rdi = arg1;
@@ -257,7 +264,6 @@ int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
 				unsigned long *addr)
 {
 	struct user_regs_struct regs;
-
 	unsigned char callrax[] = {
 		0xff, 0xd0, /* call *%rax */
 		0xcc, /* int3 */
@@ -265,6 +271,7 @@ int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
 	int ret;
 
 	kpdebug("Executing callrax %lx (pid %d)\n", *addr, pctx->pid);
+	memset(&regs, 0, sizeof(struct user_regs_struct));
 	regs.rax = *addr;
 
 	ret = kpatch_execute_remote(pctx, callrax, sizeof(callrax), &regs);

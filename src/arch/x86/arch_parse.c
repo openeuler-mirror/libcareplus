@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 
 #include "include/kpatch_log.h"
@@ -11,6 +16,7 @@ int is_function_start(struct kp_file *f, int l, kpstr_t *nm)
 	int l0 = l, func = 0;
 
 	kpstrset(nm, "", 0);
+	kpstrset(&attr, "", 0);
 	for (; l < f->nr_lines; l++) {
 		if (l != l0 && cline(f, l)[0] == '\0')
 			continue;
@@ -77,6 +83,7 @@ int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm
 	kpstr_t nm2, attr;
 
 	kpstrset(nm, "", 0);
+	kpstrset(&attr, "", 0);
 	for ( ; cline(f, l); l++) {
 
 		/* first verify that all the commands we met has the same symbol name... just to be safe! */

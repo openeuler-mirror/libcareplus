@@ -1,3 +1,7 @@
+/******************************************************************************
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+******************************************************************************/
 
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -247,7 +251,6 @@ static void init(int argc_, const char **argv_)
 	char *args;
 	int ninput = 0, i;
 	const char *realgccenv = "KPCCREAL";
-	static char pathbuf[PATH_MAX];
 
 	prog_name = argv_[0];
 
@@ -261,17 +264,7 @@ static void init(int argc_, const char **argv_)
 
 	kpatch_path = getenv("KPATCH_PATH");
 	if (kpatch_path == NULL) {
-		strcpy(pathbuf, argv_[0]);
-		dirname(pathbuf);
-		strcat(pathbuf, "/kpatch_gensrc");
-		if (access(pathbuf, X_OK) != 0) {
-			kpccfatal("can't find kpatch_gensrc at %s, define KPATCH_PATH\n",
-				  pathbuf);
-		}
-
-		dirname(pathbuf);
-
-		kpatch_path = pathbuf;
+		kpccfatal("KPATCH_PATH is undefined\n");
 	}
 
 	kpatch_stage = getenv("KPATCH_STAGE");
@@ -309,7 +302,7 @@ static void init(int argc_, const char **argv_)
 	if (args != NULL) {
 		nremove_args = split_args(remove_args, args);
 
-		qsort(remove_args, nremove_args, sizeof(*remove_args),
+		qsort(remove_args, nremove_args, sizeof(char *),
 		      (int (*)(const void *, const void *))strcmp);
 	}
 
@@ -440,6 +433,11 @@ static void init(int argc_, const char **argv_)
 	if ((action == COMPILE_SINGLE || action == GENERATE_ASSEMBLY_SINGLE)
 	    && output_file == NULL && input[idxinput_file] != stdin_path) {
 		char *ofile = (char *)basename((char *)argv[idxinput_file]);
+
+		if (ofile == NULL) {
+			fprintf(stderr, "ofile is null!\n");
+			exit(EXIT_FAILURE);
+		}
 		ofile = strdup(ofile);
 		CHECK_ALLOC(ofile);
 
@@ -545,6 +543,7 @@ static void fini(void)
 
 	if (argv_allocated) {
 		free(argv);
+		argv = NULL;
 		argv_allocated = 1;
 	}
 
@@ -573,7 +572,7 @@ static int modify_args(void)
 			continue;
 
 		found = bsearch(argv[i], remove_args, nremove_args,
-				sizeof (*remove_args),
+				sizeof (char *),
 				bsearch_strcmp);
 
 		if (found != NULL)
@@ -916,8 +915,10 @@ passthrough_file:
 
 out:
 	for (j = 1; j < i; j++) {
-		if (input_files[j])
+		if (input_files[j]) {
 			free((void *)input_files[j]);
+			input_files[j] = NULL;
+		}
 	}
 
 	return rv;
@@ -1092,7 +1093,7 @@ static int get_assembler_filename(char *aspath, const char *srcorobjpath)
 	rv = snprintf(aspath, PATH_MAX, "%s%s/%s%s.%s.s",
 		      kpatch_asm_dir ?: "",
 		      dname, kpatch_prefix, bname, kpatch_stage);
-	if (rv == PATH_MAX)
+	if (rv >= PATH_MAX)
 		kpccfatal("%s: buffer overflow\n", __func__);
 
 	if (kpatch_asm_dir != NULL) {

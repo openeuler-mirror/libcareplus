@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.09.23 - kpatch_gensrc.c: support ignoring functions which we don't need
  * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com>
  ******************************************************************************/
@@ -43,7 +46,7 @@ static int nr_must_adapt_syms;
 static int force_gotpcrel;
 static int force_global;
 
-static char* patch_func_file_name = "/etc/libcare/patch_func_names.conf";
+static char* patch_func_file_name = "/etc/libcare.conf";
 
 static int is_func_in_patch_func_file(FILE *fp, kpstr_t *sym)
 {
@@ -64,7 +67,9 @@ static int is_func_in_patch_func_file(FILE *fp, kpstr_t *sym)
 	return 0;
 }
 
-static inline int in_syms_list(char *filename, kpstr_t *sym, const struct sym_desc *sym_arr, int nr_syms, int cblock_type)
+static inline int in_syms_list(const char *filename, kpstr_t *sym,
+                               const struct sym_desc *sym_arr,
+                               int nr_syms, int cblock_type)
 {
 	int i, len, rv;
 
@@ -145,11 +150,15 @@ void rename_add(struct kp_file *f, kpstr_t *src, kpstr_t *dst)
 
 	if ((r2 = rename_find(f, src))) {
 		if (kpstrcmp(&r2->dst, dst))
-			kpfatal("Rename conflict %.*s -> %.*s and -> %.*s\n", src->l, src->s, r2->dst.l, r2->dst.s, dst->l, dst->s);
+			kpfatal("Rename conflict %.*s -> %.*s and -> %.*s\n",
+				src->l, src->s, r2->dst.l, r2->dst.s, dst->l, dst->s);
 		return;
 	}
 
 	r = malloc(sizeof(*r));
+	if (r == NULL) {
+		kpfatal("Failed to malloc rbtree!\n");
+	}
 	r->src = *src;
 	r->dst = *dst;
 	rb_insert_node(&f->renames, &r->rb, rename_cmp, (unsigned long)src);
@@ -395,6 +404,10 @@ static void change_section(struct kp_file *fout, struct section_desc *sect, int 
 {
 	char *s;
 
+	if (sect == NULL) {
+		kpfatal("Section description is NULL!\n");
+	}
+
 	if (sect->outname)
 		s = sect->outname;
 	else if (sect->type & SECTION_EXECUTABLE)
@@ -492,7 +505,8 @@ static inline int get_mov_const_reg(const char *s, char *regname)
 static int get_possible_lineno_funcs(const char *s0, const char *s1)
 {
 	int i, try = 0;
-	char regname0[32], regname1[32];
+	char regname0[32] = {0};
+	char regname1[32] = {0};
 
 	if (ARRAY_SIZE(lineno_functions) > sizeof(try) * 8)
 		kpfatal("get_possible_lineno_funcs return value overflow");
@@ -622,7 +636,7 @@ static int match_build_path(struct cblock *b0, int *p0, struct cblock *b1, int *
 }
 
 /* this is a minor improvement to avoid function patching just because of code line numbers are screwed, but real function hasn't changed */
-static int match_var_descriptor(struct cblock *b0, int *p0, struct cblock *b1, int *p1)
+static int match_var_descriptor(struct cblock *b0, int *p0, struct cblock *b1, const int *p1)
 {
 	char *s0, *s1;
 	kpstr_t t0, t1;
@@ -677,7 +691,7 @@ static int match_var_datetime(struct cblock *b0, int *p0, struct cblock *b1, int
 }
 
 /* this is a minor improvement to avoid function patching just because of code line numbers are screwed, but real function hasn't changed */
-static int match_bug_on(struct cblock *b0, int *p0, struct cblock *b1, int *p1)
+static int match_bug_on(struct cblock *b0, int *p0, struct cblock *b1, const int *p1)
 {
 	char *s0, *s1;
 	kpstr_t t00, t01, t10, t11, t20, t21, t30, t31, t40, t41, t50, t51, t60, t61;
@@ -715,6 +729,9 @@ static int match_bug_on(struct cblock *b0, int *p0, struct cblock *b1, int *p1)
 		 *        .popsection
 		 */
 		s0 = cline(b0->f, *p0); s1 = cline(b1->f, *p1);
+		if (csect(b0->f, *p0) == NULL || csect(b1->f, *p1) == NULL) {
+			kpfatal("Could not find vaild section!\n");
+		}
 		if (strcmp(csect(b0->f, *p0)->name, "__bug_table") || strcmp(csect(b1->f, *p1)->name, "__bug_table"))
 		       return 0;
 		if (!strncmp(s0, "2:\t.long 1b - 2b, ", 18) && !strncmp(s1, "2:\t.long 1b - 2b, ", 18))
@@ -916,6 +933,9 @@ static void __name_add_kpatch_suffix(struct kp_file *f, kpstr_t *t, kpstr_t *bas
 	/* rename name to name.kpatch */
 	tnew.l = basename->l + strlen(suffix) + 1;
 	tnew.s = malloc(tnew.l);
+	if (tnew.s == NULL) {
+		kpfatal("Failed to alloc tnew!\n");
+	}
 	snprintf(tnew.s, tnew.l, "%.*s%s", basename->l, basename->s, suffix);
 	rename_add(f, t, &tnew);
 	kplog(LOG_DEBUG, "RENAME[%d]: %.*s -> %.*s\n", f->id, t->l, t->s, tnew.l, tnew.s);
@@ -1597,6 +1617,8 @@ int main(int argc, char **argv)
 	int err, ch, k = 0, dbgfilter = 0, dbgfilter_options = 0;
 	struct kp_file infile[2], outfile;
 
+	memset(&outfile, 0, sizeof(struct kp_file));
+	outfile.f = NULL;
 	while ((ch = getopt_long(argc, argv, "d:O:i:o:a:f", long_opts, 0)) != -1) {
 		switch (ch) {
 		case 'd':
@@ -1656,8 +1678,9 @@ int main(int argc, char **argv)
 			usage();
 		}
 	}
-	if (optind != argc)
+	if (optind != argc || outfile.f == NULL) {
 		usage();
+	}
 
 	if (dbgfilter) {
 		if (k < 1)
