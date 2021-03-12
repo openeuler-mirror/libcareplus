@@ -1,3 +1,8 @@
+/*******************************************************************************
+ * 2021.10.08 - kpatch_parse: fix possible Null pointer dereferences
+ * Huawei Technologies Co., Ltd. <jinyan12@huawei.com>
+*******************************************************************************/
+
 #include <stdlib.h>
 
 #include "include/kpatch_log.h"
@@ -141,6 +146,10 @@ void init_ctypes(struct kp_file *f)
 	int i;
 
 	f->ctype = malloc(f->nr_lines * sizeof(f->ctype[0]));
+	if (!f->ctype) {
+		kpfatal("Failed to allocate ctype for kp_file\n");
+	}
+
 	for (i = 0; i < f->nr_lines; i++) {
 		f->ctype[i] = parse_ctype(cline(f, i), true);
 	}
@@ -204,6 +213,9 @@ static void cblock_make_human_name(kpstr_t *hnm, kpstr_t *nm)
 struct cblock * cblock_add(struct kp_file *f, int s, int e, kpstr_t *nm, int type, int globl)
 {
 	struct cblock *blk = malloc(sizeof(*blk));
+	if (!blk) {
+		kpfatal("Failed to allocate cblock\n");
+	}
 
 	if (nm->l && cblock_find_by_name(f, nm))
 		kpfatal("duplicate cblock name '%.*s'", nm->l, nm->s);
@@ -365,6 +377,9 @@ static void init_attr_block(struct kp_file *f, int *i)
 void cblock_split(struct cblock *b, int len)
 {
 	struct cblock *blk = malloc(sizeof(*blk));
+	if (!blk) {
+		kpfatal("Failed to allocate cblock when splitting it\n");
+	}
 
 	memset(blk, 0, sizeof(*blk));
 	blk->start = b->start + len;
@@ -509,6 +524,10 @@ struct section_desc *find_section(char *name)
 static struct section_desc *dup_section(struct section_desc *sect)
 {
 	struct section_desc *s = malloc(sizeof(*s));
+	if (!s) {
+		kpfatal("Failed to allocate duplicate section\n");
+	}
+
 	*s = *sect;
 	s->prev = NULL;
 	memset(&s->rbnm, 0, sizeof(s->rbnm));
@@ -559,6 +578,10 @@ static struct section_desc *__parse_section(char *s)
 	}
 
 	sect = malloc(sizeof(*sect));
+	if (!sect) {
+		kpfatal("Failed to allocate section\n");
+	}
+
 	memset(sect, 0, sizeof(*sect));
 	sect->name = sname;
 
@@ -612,6 +635,10 @@ void init_sections(struct kp_file *f)
 			rb_insert_node(&sections_rbroot_byname, &predefined_sections[i].rbnm, section_name_cmp, (unsigned long)predefined_sections[i].name);
 
 	f->section = malloc(f->nr_lines * sizeof(void *));
+	if (!f->section) {
+		kpfatal("Failed to allocate section for kp_file\n");
+	}
+
 	f->section[0] = find_section(".text");		/* code can start w/o sectiong directive */
 	for (i = 1; i < f->nr_lines; i++) {
 		sect = parse_section(f, i);
