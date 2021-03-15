@@ -31,6 +31,9 @@ EOF
 
 prepare_env() {
 	KPATCH_PATH=$(dirname $0)
+	export KP_EXECVE_DEBUG=1;
+	export KPCC_DEBUG=1;
+	export KPATCH_PATH=$(dirname $0)
 
 	if test ! -x "$KPATCH_PATH/kpatch_gensrc"; then
 		echo "kpatch tools are missing" >&2
