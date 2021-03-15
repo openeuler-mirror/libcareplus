@@ -1,4 +1,7 @@
 /*******************************************************************************
+ * 2021.10.08 - kpatch_parse: fix wrong return in is_data_sec()
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -550,7 +553,7 @@ struct section_desc *csect(struct kp_file *f, int l)
 
 int is_data_sect(struct section_desc *sect)
 {
-	return (sect == NULL) ? 1 : !(sect->type & SECTION_EXECUTABLE);
+	return (sect == NULL) ? 0 : !(sect->type & SECTION_EXECUTABLE);
 }
 
 int is_code_sect(struct section_desc *sect)
