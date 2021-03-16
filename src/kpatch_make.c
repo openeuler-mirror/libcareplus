@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: rename uname to buildid
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.07 - process: add some checks before patching
  * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
@@ -43,7 +46,7 @@ int make_file(int fdo, void *buf1, off_t size, const char *buildid, const char *
 
 	memcpy(khdr.magic, KPATCH_FILE_MAGIC1, sizeof(khdr.magic));
 	strncpy(khdr.id, patch_id, sizeof(khdr.id));
-	strncpy(khdr.uname, buildid, sizeof(khdr.uname));
+	strncpy(khdr.buildid, buildid, sizeof(khdr.buildid));
 	khdr.build_time = (uint64_t)time(NULL);
 	khdr.csum = 0;		/* FIXME */
 	khdr.nr_reloc = 0;
@@ -104,6 +107,10 @@ int main(int argc, char **argv)
 
 	if (buildid == NULL || patch_id == NULL || *patch_id == '\0')
 		usage();
+
+	if (strlen(buildid) !=  KPATCH_BUILDID_LEN) {
+		xerror("Invalid build id: %s", buildid);
+	}
 
 	fd1 = open(argv[optind], O_RDONLY);
 	if (fd1 == -1)

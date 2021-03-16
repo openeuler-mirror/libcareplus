@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: rename uname to buildid
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.08 - ptrace/process/patch: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -196,7 +199,7 @@ process_get_object_type(kpatch_process_t *proc,
 		struct kpatch_file *pkpfile = (struct kpatch_file *)buf;
 
 		if (!strcmp(pkpfile->magic, KPATCH_FILE_MAGIC1)) {
-			sprintf(name, "[kpatch-%s]", pkpfile->uname);
+			sprintf(name, "[kpatch-%s]", pkpfile->buildid);
 			return type;
 		}
 	}
@@ -418,7 +421,7 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 
 			bid = kpatch_get_buildid(o);
 			if (bid == NULL ||
-			    strcmp(bid, objpatch->kpfile.patch->uname))
+			    strcmp(bid, objpatch->kpfile.patch->buildid))
 				continue;
 
 			if (kpatch_object_add_applied_patch(o, objpatch) < 0)

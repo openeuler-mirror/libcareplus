@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: rename uname to buildid
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.07 - kpatch_object: combine funcitons with similar function
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -80,7 +83,7 @@ struct object_file {
 	struct list_head vma;
 
 	/* Object's Build-ID */
-	char buildid[41];
+	char buildid[KPATCH_BUILDID_LEN + 1];
 
 	/* Patch information */
 	struct kpatch_info *info;

@@ -1,6 +1,9 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: rename uname to buildid
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #ifndef __KPATCH_FILE_H__
@@ -97,7 +100,7 @@ typedef int (*kpatch_undo_patch)(struct kpatch_data *);
 
 #define KPATCH_FILE_MAGIC1	"KPATCH1"
 #define KPATCH_MAX_NR_ENTRIES	16
-#define KPATCH_UNAME_LEN	256
+#define KPATCH_BUILDID_LEN	40
 
 #define KPATCH_DEBUG_FLAG    0
 #define KPATCH_NOFREEZE_FLAG 1 /* this flag is ignored, use safety method insted */
@@ -123,7 +126,8 @@ struct kpatch_file {
 	unsigned char safety_method;
 	char pad[6];
 	char modulename[64];		/* "vmlinux" or module name */
-	char uname[KPATCH_UNAME_LEN];	/* /proc/version of the kernel */
+	char buildid[KPATCH_BUILDID_LEN + 1];	/* patch buildid */
+	char pad1[23];
 
 	uint64_t build_time;		/* build time */
 	uint32_t csum;			/* checksum of the whole kpatch */
@@ -221,7 +225,7 @@ struct kpatch_query_info {
 #define KPATCH_STATE_APPLIED	1	/* Patch is applied */
 	uint32_t state;
 
-	char uname[KPATCH_UNAME_LEN];
+	char buildid[KPATCH_BUILDID_LEN + 1];	/* patch build id */
 	char description[512];
 
 	uint64_t build_time;

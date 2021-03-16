@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: rename uname to buildid
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.08 - storage/strip: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  ******************************************************************************/
@@ -95,7 +98,7 @@ int storage_init(kpatch_storage_t *storage,
 			kpatch_close_file(&storage->patch.kpfile);
 			goto out_close;
 		}
-		strcpy(storage->patch.buildid, storage->patch.kpfile.patch->uname);
+		strcpy(storage->patch.buildid, storage->patch.kpfile.patch->buildid);
 	}
 
 	storage->path = strdup(fname);
