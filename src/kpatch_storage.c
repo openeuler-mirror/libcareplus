@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.08 - storage/strip: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -60,14 +65,17 @@ int storage_init(kpatch_storage_t *storage,
 	int patch_fd = -1;
 	struct stat stat = { .st_mode = 0 };
 
-	if (fname != NULL) {
-		patch_fd = open(fname, O_RDONLY | O_CLOEXEC);
-		if (patch_fd < 0)
-			goto out_err;
-
-		if (fstat(patch_fd, &stat) < 0)
-			goto out_close;
+	if (fname == NULL) {
+		kperr("storage path is not configured\n");
+		return -1;
 	}
+
+	patch_fd = open(fname, O_RDONLY | O_CLOEXEC);
+	if (patch_fd < 0)
+		goto out_err;
+
+	if (fstat(patch_fd, &stat) < 0)
+	        goto out_close;
 
 	storage->patch_fd = patch_fd;
 	storage->is_patch_dir = S_ISDIR(stat.st_mode);
@@ -119,6 +127,7 @@ void storage_free(kpatch_storage_t *storage)
 	if (storage->is_patch_dir)
 		rb_destroy(&storage->tree, free_storage_patch_cb);
 	free(storage->path);
+	storage->path = NULL;
 }
 
 static int
@@ -166,7 +175,8 @@ storage_open_patch(kpatch_storage_t *storage,
 		   struct kpatch_storage_patch* patch)
 {
 	char fname[96];
-	int i, rv;
+	int rv = PATCH_NOT_FOUND;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pathtemplates); i++) {
 		sprintf(fname, pathtemplates[i], buildid);
@@ -206,7 +216,8 @@ storage_stat_patch(kpatch_storage_t *storage,
 {
 	char fname[96];
 	struct stat buf;
-	int i, rv;
+	int rv = PATCH_NOT_FOUND;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(pathtemplates); i++) {
 		sprintf(fname, pathtemplates[i], buildid);
@@ -361,6 +372,11 @@ char *storage_get_description(kpatch_storage_t *storage,
 			alloc += PAGE_SIZE;
 
 			desc = malloc(alloc);
+
+			if (desc == NULL) {
+				kperr("failed to malloc memory for desc\n");
+				goto err_free;
+			}
 
 			if (olddesc != NULL) {
 				memcpy(desc, olddesc, sz);

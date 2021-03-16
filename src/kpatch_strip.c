@@ -1,6 +1,10 @@
 /******************************************************************************
+ * 2021.10.08 - storage/strip: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.08 - remove deprecated code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.09.23 - tls: add support for tls symbol
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  ******************************************************************************/
@@ -31,7 +35,7 @@
 #define MODE_REL_FIXUP 4
 #define MODE_UNDO_LINK 5
 
-int need_section(char *name)
+int need_section(const char *name)
 {
 	if (strstr(name, "kpatch"))
 		return 1;
@@ -44,7 +48,7 @@ int need_section(char *name)
 	return 0;
 }
 
-Elf *kpatch_open_elf(char *file, int create)
+Elf *kpatch_open_elf(const char *file, int create)
 {
 	int fd;
 	Elf *elf;
@@ -53,8 +57,10 @@ Elf *kpatch_open_elf(char *file, int create)
 	if (fd == -1)
 		kpfatalerror("open");
 	elf = elf_begin(fd, (create ? ELF_C_WRITE : ELF_C_RDWR), NULL);
+	close(fd);
 	if (!elf)
 		kpfatalerror("elf_begin");
+
 	return elf;
 }
 
@@ -140,6 +146,9 @@ static int kpatch_strip(Elf *elfin, Elf *elfout)
 		if (!gelf_getshdr(scnin, &shin))
 			kpfatalerror("gelf_getshdr in");
 		scnname = elf_strptr(elfin, shstridx, shin.sh_name);
+		if (!scnname) {
+			kpfatalerror("elf_strptr");
+		}
 		shout = shin;
 
 		if (off != -1ull) {
@@ -167,6 +176,11 @@ static int kpatch_strip(Elf *elfin, Elf *elfout)
 		if (!elf_flagscn(scnout, ELF_C_SET, ELF_F_DIRTY))
 			kpfatalerror("elf_flagscn");
 	}
+
+	if (off == -1ull) {
+		kpfatalerror("off is equal to -1");
+	}
+
 	off = ALIGN(off, 8);
 	ehout.e_shoff = off;
 
