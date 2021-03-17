@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -215,7 +220,7 @@ struct breakpoint {
 int
 kpatch_ptrace_execute_until(kpatch_process_t *proc,
 			    int timeout_msec,
-			    int flags)
+			    unsigned int flags)
 {
 	int ret = 0, errno_save;
 	char break_code[] = BREAK_INSN;
@@ -415,7 +420,7 @@ poke_back:
 
 int
 wait_for_stop(struct kpatch_ptrace_ctx *pctx,
-	      void *data)
+	      const void *data)
 {
 	int ret, status = 0, pid = (int)(uintptr_t)data ?: pctx->pid;
 	kpdebug("wait_for_stop(pctx->pid=%d, pid=%d)\n", pctx->pid, pid);

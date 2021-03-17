@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.07 - kpatch_object: combine funcitons with similar function
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -364,7 +367,7 @@ kpatch_object_dump(struct object_file *o)
 }
 
 static unsigned int
-perms2prot(char *perms)
+perms2prot(const char *perms)
 {
 	unsigned int prot = 0;
 
@@ -739,8 +742,6 @@ kpatch_process_attach(kpatch_process_t *proc)
 		kpinfo(", %d", pids[i]);
 	kpinfo("\n");
 
-	free(pids);
-
 	if (proc->ptrace.unwd == NULL) {
 		proc->ptrace.unwd = unw_create_addr_space(&_UPT_accessors,
 							  __LITTLE_ENDIAN);
@@ -750,6 +751,7 @@ kpatch_process_attach(kpatch_process_t *proc)
 		}
 	}
 
+	free(pids);
 	return 0;
 
 detach:
@@ -866,13 +868,14 @@ process_get_comm(kpatch_process_t *proc)
 	ret = readlink(path, realpath, sizeof(realpath));
 	if (ret < 0)
 		return -1;
-	realpath[ret] = '\0';
+	realpath[ret - 1] = '\0';
 	bn = basename(realpath);
 	strncpy(path, bn, sizeof(path));
 	if ((c = strstr(path, " (deleted)")))
 		*c = '\0';
-	strncpy(proc->comm, path, sizeof(proc->comm));
 
+	proc->comm[sizeof(proc->comm) - 1] = '\0';
+	strncpy(proc->comm, path, sizeof(proc->comm) - 1);
 	if (!strncmp(proc->comm, "ld", 2)) {
 		proc->is_ld_linux = 1;
 		return process_get_comm_ld_linux(proc);

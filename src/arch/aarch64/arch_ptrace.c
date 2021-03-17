@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -242,8 +245,7 @@ kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
 			   const unsigned char *code,
 			   size_t codelen,
 			   struct user_regs_struct *pregs,
-			   int (*func)(struct kpatch_ptrace_ctx *pctx,
-				       void *data),
+			   int (*func)(struct kpatch_ptrace_ctx *pctx, const void *data),
 			   void *data)
 {
 	struct user_regs_struct orig_regs, regs;

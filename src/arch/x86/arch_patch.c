@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -28,8 +33,8 @@
  * This flag is local, i.e. it is never stored to the
  * patch applied to patient's memory.
  */
-int PATCH_APPLIED =	(1 << 31);
-int HUNK_SIZE = 5;
+unsigned int PATCH_APPLIED =    (1 << 31);
+unsigned int HUNK_SIZE = 5;
 
 int patch_apply_hunk(struct object_file *o, size_t nhunk)
 {

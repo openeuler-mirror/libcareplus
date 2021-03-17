@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -577,6 +580,12 @@ object_find_applied_patch_info(struct object_file *o)
 		if (o->ninfo == nalloc) {
 			nalloc += 16;
 			o->info = realloc(o->info, nalloc * sizeof(tmpinfo));
+			if (o->info == NULL) {
+				kperr("Failed to realloc o->info!\n");
+				o->ninfo = 0;
+				ret = -1;
+				goto err;
+			}
 		}
 
 		o->info[o->ninfo] = tmpinfo;
@@ -650,6 +659,9 @@ kpatch_should_unapply_patch(struct object_file *o,
 		return 1;
 
 	bid = kpatch_get_buildid(o);
+	if (bid == NULL) {
+		return 0;
+	}
 
 	for (i = 0; i < nbuildids; i++) {
 		if (!strcmp(bid, buildids[i]) ||

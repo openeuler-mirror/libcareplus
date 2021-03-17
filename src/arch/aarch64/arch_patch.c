@@ -27,8 +27,8 @@
  * This flag is local, i.e. it is never stored to the
  * patch applied to patient's memory.
  */
-int PATCH_APPLIED = (1 << 31);
-int HUNK_SIZE = 4;
+unsigned int PATCH_APPLIED = (1 << 31);
+unsigned int HUNK_SIZE = 4;
 
 int patch_apply_hunk(struct object_file *o, size_t nhunk)
 {
