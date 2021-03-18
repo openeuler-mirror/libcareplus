@@ -40,7 +40,7 @@ all: $(TARGETS)
 .SUFFIXES:
 
 kpatch_gensrc: kpatch_gensrc.o kpatch_dbgfilter.o kpatch_parse.o kpatch_io.o rbtree.o kpatch_log.o arch_parse.o
-kpatch_make: kpatch_make.o
+kpatch_make: kpatch_make.o kpatch_log.o
 
 LIBUNWIND_LIBS := $(shell pkg-config --libs libunwind libunwind-ptrace)
 

@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.11 - kpatch: clear code checker warnings
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ ******************************************************************************/
+
 #ifndef __KP_IO_H__
 #define __KP_IO_H__
 
@@ -26,8 +31,8 @@ struct kp_file {
 	struct rb_root renames;
 };
 
-int read_file(struct kp_file *f, char *fname);
-int create_file(struct kp_file *f, char *fname);
+int read_file(struct kp_file *f, const char *fname);
+int create_file(struct kp_file *f, const char *fname);
 void close_file(struct kp_file *f);
 void *kp_realloc(void *p, int oldsz, int newsz);
 
