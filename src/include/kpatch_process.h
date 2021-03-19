@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.11 - kpatch: rename uname to buildid
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -236,7 +239,6 @@ struct vm_hole *next_hole(struct vm_hole *hole, struct list_head *head);
 struct vm_hole *prev_hole(struct vm_hole *hole, struct list_head *head);
 unsigned long hole_size(struct vm_hole *hole);
 
-unsigned long random_from_range(unsigned long min, unsigned long max);
 unsigned long object_find_patch_region(struct object_file *obj,
 			 size_t memsize,
 			 struct vm_hole **hole);

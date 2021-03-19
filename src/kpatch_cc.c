@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
 ******************************************************************************/
@@ -549,6 +552,7 @@ static void fini(void)
 
 	if (output_file_allocated) {
 		free((void *)output_file);
+		output_file = NULL;
 		output_file_allocated = 0;
 	}
 }

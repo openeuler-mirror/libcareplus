@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.11 - kpatch: rename uname to buildid
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -1026,13 +1029,6 @@ hole_size(struct vm_hole *hole)
 	if (hole == NULL)
 		return 0;
 	return hole->end - hole->start;
-}
-
-unsigned long
-random_from_range(unsigned long min, unsigned long max)
-{
-	/* TODO this is not uniform nor safe */
-	return min + random() % (max - min);
 }
 
 int

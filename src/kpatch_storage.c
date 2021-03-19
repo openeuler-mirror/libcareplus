@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.11 - kpatch: rename uname to buildid
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -378,6 +381,7 @@ char *storage_get_description(kpatch_storage_t *storage,
 
 			if (desc == NULL) {
 				kperr("failed to malloc memory for desc\n");
+				free(olddesc);
 				goto err_free;
 			}
 

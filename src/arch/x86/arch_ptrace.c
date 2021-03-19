@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - ptrace/process/patch: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -290,7 +293,7 @@ kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
 			   size_t codelen,
 			   struct user_regs_struct *pregs,
 			   int (*func)(struct kpatch_ptrace_ctx *pctx, const void *data),
-			   void *data)
+			   const void *data)
 {
 	struct user_regs_struct orig_regs, regs;
 	unsigned char orig_code[codelen];

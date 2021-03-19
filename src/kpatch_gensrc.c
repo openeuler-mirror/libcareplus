@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -636,7 +639,7 @@ static int match_build_path(struct cblock *b0, int *p0, struct cblock *b1, int *
 }
 
 /* this is a minor improvement to avoid function patching just because of code line numbers are screwed, but real function hasn't changed */
-static int match_var_descriptor(struct cblock *b0, int *p0, struct cblock *b1, const int *p1)
+static int match_var_descriptor(struct cblock *b0, const int *p0, struct cblock *b1, const int *p1)
 {
 	char *s0, *s1;
 	kpstr_t t0, t1;
@@ -691,7 +694,7 @@ static int match_var_datetime(struct cblock *b0, int *p0, struct cblock *b1, int
 }
 
 /* this is a minor improvement to avoid function patching just because of code line numbers are screwed, but real function hasn't changed */
-static int match_bug_on(struct cblock *b0, int *p0, struct cblock *b1, const int *p1)
+static int match_bug_on(struct cblock *b0, const int *p0, struct cblock *b1, const int *p1)
 {
 	char *s0, *s1;
 	kpstr_t t00, t01, t10, t11, t20, t21, t30, t31, t40, t41, t50, t51, t60, t61;

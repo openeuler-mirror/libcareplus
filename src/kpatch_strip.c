@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.11 - kpatch_strip: revert close fd
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -541,6 +544,7 @@ kpatch_rel_offset_to_relative(kpatch_objinfo *patch,
 	GElf_Shdr sh_patch;
 	int i;
 
+	memset(&sh_patch, 0, sizeof(GElf_Shdr));
 	kpatch_objinfo_getshdr(patch, sh_rel->sh_info,
 			       &sh_patch);
 

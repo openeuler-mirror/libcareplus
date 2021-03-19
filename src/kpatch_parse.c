@@ -1,4 +1,7 @@
-/*******************************************************************************
+/******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - kpatch_parse: fix wrong return in is_data_sec()
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -7,7 +10,7 @@
  *
  * 2021.10.08 - kpatch_parse: fix possible Null pointer dereferences
  * Huawei Technologies Co., Ltd. <jinyan12@huawei.com>
-*******************************************************************************/
+******************************************************************************/
 
 #include <stdlib.h>
 
@@ -530,7 +533,7 @@ struct section_desc *find_section(char *name)
 static struct section_desc *dup_section(struct section_desc *sect)
 {
 	struct section_desc *s = malloc(sizeof(*s));
-	if (!s) {
+	if (!s || !sect) {
 		kpfatal("Failed to allocate duplicate section\n");
 	}
 
