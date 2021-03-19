@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch_strip: revert close fd
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - storage/strip: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -57,7 +60,6 @@ Elf *kpatch_open_elf(const char *file, int create)
 	if (fd == -1)
 		kpfatalerror("open");
 	elf = elf_begin(fd, (create ? ELF_C_WRITE : ELF_C_RDWR), NULL);
-	close(fd);
 	if (!elf)
 		kpfatalerror("elf_begin");
 
