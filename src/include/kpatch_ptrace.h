@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch_ptrace: fix x86 compile warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - ptrace/process/patch: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  ******************************************************************************/
@@ -141,7 +144,7 @@ kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
 			   size_t codelen,
 			   struct user_regs_struct *pregs,
 			   int (*func)(struct kpatch_ptrace_ctx *pctx, const void *data),
-			   void *data);
+			   const void *data);
 
 int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 		unsigned long arg1, unsigned long arg2, unsigned long arg3,
