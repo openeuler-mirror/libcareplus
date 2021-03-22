@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - kpatch: clear code checker warnings
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.10.11 - kpatch: clear code checker warnings
  * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
@@ -83,9 +86,9 @@ int main(int argc, char **argv)
 	int fdo = 1;
 	void *buf;
 	struct stat st;
-	const char *buildid = NULL;
-	const char *outputname = NULL;
-	const char *patch_id = NULL;
+	char *buildid = NULL;
+	char *outputname = NULL;
+	char *patch_id = NULL;
 
 	while ((opt = getopt(argc, argv, "db:o:i:v:s:")) != -1) {
 		switch (opt) {
@@ -95,21 +98,21 @@ int main(int argc, char **argv)
 		case 'b':
 			if (buildid) {
 				kplogerror("duplicate inputted buildid\n");
-				return -1;
+				goto cleanup;
 			}
 			buildid = strdup(optarg);
 			break;
 		case 'o':
 			if (outputname) {
 				kplogerror("duplicate inputted outputname\n");
-				return -1;
+				goto cleanup;
 			}
 			outputname = strdup(optarg);
 			break;
 		case 'i':
 			if (patch_id) {
 				kplogerror("duplicate inputted patch_id\n");
-				return -1;
+				goto cleanup;
 			}
 			patch_id = strdup(optarg);
 			break;
@@ -139,23 +142,28 @@ int main(int argc, char **argv)
 		goto cleanup;
 	}
 	buf = mmap(NULL, st.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd1, 0);
-	if (buf == MAP_FAILED)
+	if (buf == MAP_FAILED) {
 		kplogerror("mmap error %d", errno);
-	close(fd1);
+		goto cleanup;
+	}
 
 	fdo = 1;
 	if (outputname) {
 		fdo = open(outputname, O_CREAT | O_TRUNC | O_WRONLY, 0660);
 		if (fdo == -1) {
 			kplogerror("Can't open output file '%s'\n", outputname);
-			goto cleanup;
+			goto unmap;
 		}
 	}
 	ret = make_file(fdo, buf, st.st_size, buildid, patch_id);
+unmap:
+	munmap(buf, st.st_size);
 
 cleanup:
 	close(fdo);
-	munmap(buf, st.st_size);
 	close(fd1);
+	free(buildid);
+	free(outputname);
+	free(patch_id);
 	return ret;
 }

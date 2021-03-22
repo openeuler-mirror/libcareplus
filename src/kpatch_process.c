@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - kpatch: clear code checker warnings
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.10.11 - kpatch: fix code checker warning
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -876,7 +879,7 @@ process_get_comm(kpatch_process_t *proc)
 		return -1;
 	realpath[ret - 1] = '\0';
 	bn = basename(realpath);
-	strncpy(path, bn, sizeof(path));
+	strncpy(path, bn, sizeof(path) - 1);
 	if ((c = strstr(path, " (deleted)")))
 		*c = '\0';
 
