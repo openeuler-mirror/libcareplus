@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - return: make every return properly other than direct-exit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  ******************************************************************************/
@@ -54,9 +57,10 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
 		void *loc, *loc2;
 
 		if (r->r_offset < 0 || r->r_offset >= tshdr->sh_size) {
-			kpfatalerror("Relocation offset for section '%s'"
-				     " is at 0x%lx beyond the section size 0x%lx\n",
-				     scnname, r->r_offset, tshdr->sh_size);
+			kperr("Relocation offset for section '%s'"
+			      " is at 0x%lx beyond the section size 0x%lx\n",
+			      scnname, r->r_offset, tshdr->sh_size);
+			return -1;
 		}
 
 		/* Location in our address space */
@@ -123,7 +127,7 @@ unsigned long kpatch_arch_add_jmp_entry(struct object_file *o, unsigned long add
 	int e;
 
 	if (o->jmp_table == NULL) {
-		kpfatalerror("JMP TABLE not found\n");
+		kperr("JMP TABLE not found\n");
 		return 0;
 	}
 

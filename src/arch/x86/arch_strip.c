@@ -62,11 +62,11 @@
  */
 int
 kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
-			     kpatch_objinfo *patch,
-			     GElf_Rela *rela,
-			     GElf_Sym *sym,
-			     GElf_Shdr *sh_text,
-			     unsigned char *text)
+				  kpatch_objinfo *patch,
+				  GElf_Rela *rela,
+				  GElf_Sym *sym,
+				  GElf_Shdr *sh_text,
+				  unsigned char *text)
 {
 	switch (GELF_R_TYPE(rela->r_info)) {
 	case R_X86_64_GOTTPOFF:
@@ -82,15 +82,15 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 		rv = kpatch_get_original_symbol_loc(
 			origbin, symname, &off, NULL);
 		if (rv == SECTION_NOT_FOUND) {
-			kpfatalerror(
-				"TLS symbol %s not found in original binary",
-				symname);
+			kperr("TLS symbol %s not found in original binary", symname);
+			return -1;
 		}
 
 	    kpinfo("Compare TLS symbol %s offset: %lx in origbinal binary, %lx in patch\n",
 				symname, off, sym->st_value);
         if (off != sym->st_value) {
-                kpfatalerror("TLS symbol %s has different offset!\n", symname);
+                kperr("TLS symbol %s has different offset!\n", symname);
+		return -1;
         }
 
 		return 0;
@@ -103,7 +103,7 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 	case R_X86_64_TLSLD:
 	case R_X86_64_TPOFF64:
 	default:
-		kpfatalerror("non-supported TLS model\n");
+		kperr("non-supported TLS model\n");
 		return -1;
 	}
 

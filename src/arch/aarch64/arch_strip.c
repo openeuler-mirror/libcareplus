@@ -101,7 +101,7 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 	case R_AARCH64_TLSIE_LD64_GOTTPREL_LO12_NC:
 		break;
 	default:
-		kpfatalerror("non-supported TLS model\n");
+		kperr("non-supported TLS model\n");
 		return -1;
 	}
 

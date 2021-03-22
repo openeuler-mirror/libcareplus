@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - return: make every return properly other than direct-exit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  ******************************************************************************/
@@ -167,13 +170,13 @@ kpatch_objinfo_load_tls_reladyn(kpatch_objinfo *oi)
 
 	scn_rela_dyn = kpatch_objinfo_find_scn_by_name(oi, ".rela.dyn", NULL);
 	if (scn_rela_dyn == NULL) {
-		kpfatalerror("unable to find .rela.dyn");
+		kperr("unable to find .rela.dyn");
 		return -1;
 	}
 
 	data_rela_dyn = elf_getdata(scn_rela_dyn, NULL);
 	if (data_rela_dyn == NULL || data_rela_dyn->d_buf == NULL) {
-		kpfatalerror("no data for .rela.dyn");
+		kperr("no data for .rela.dyn");
 		return -1;
 	}
 

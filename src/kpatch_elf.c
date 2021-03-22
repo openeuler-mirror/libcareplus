@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.11 - return: make every return properly other than direct-exit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -696,9 +699,12 @@ kpatch_resolve_undefined(struct object_file *obj,
 
 		addr = vaddr2addr(o, addr);
 
-		if (type == STT_GNU_IFUNC)
-			if (kpatch_arch_ptrace_resolve_ifunc(proc2pctx(obj->proc), &addr) < 0)
-				kpfatalerror("kpatch_arch_ptrace_resolve_ifunc failed\n");
+		if (type == STT_GNU_IFUNC) {
+			if (kpatch_arch_ptrace_resolve_ifunc(proc2pctx(obj->proc), &addr) < 0) {
+				kperr("kpatch_arch_ptrace_resolve_ifunc failed\n");
+				return 0;
+			}
+		}
 
 		break;
 	}
@@ -713,6 +719,7 @@ symbol_resolve(struct object_file *o,
 	       char *symname)
 {
 	unsigned long uaddr;
+	unsigned long st_value;
 
 	switch(GELF_ST_TYPE(s->st_info)) {
 	case STT_SECTION:
@@ -722,7 +729,7 @@ symbol_resolve(struct object_file *o,
 	case STT_FUNC:
 	case STT_OBJECT:
 
-		/* TODO(pboldin) this breaks rule for overriding
+		/* this breaks rule for overriding
 		 * symbols via dynamic libraries. Fix it. */
 		if (s->st_shndx == SHN_UNDEF &&
 		    GELF_ST_BIND(s->st_info) == STB_GLOBAL) {
@@ -738,8 +745,12 @@ symbol_resolve(struct object_file *o,
 			}
 			/* OK, we overuse st_size to store original offset */
 			s->st_size = uaddr;
-			s->st_value = kpatch_arch_add_jmp_entry(o, uaddr);
-
+			st_value = kpatch_arch_add_jmp_entry(o, uaddr);
+			if (!st_value) {
+				kperr("Failed to add jmp entry");
+				return -1;
+			}
+			s->st_value = st_value;
 			kpdebug("symbol '%s' = 0x%lx\n",
 				symname, uaddr);
 			kpdebug("jmptable '%s' = 0x%lx\n",
