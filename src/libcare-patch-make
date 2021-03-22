@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 
 usage() {
 cat<<'EOF'
@@ -152,12 +152,28 @@ build_kpatches() {
 		chmod u+w "${origexec}" "${patchedexec}"
 		$KPATCH_PATH/kpatch_strip --strip "${patchedexec}" \
 			"${patchedexec}.stripped" >/dev/null
+		if [ $? -ne 0 ];then
+			echo "Failed to do stripped."
+			exit 1
+		fi
 		$KPATCH_PATH/kpatch_strip --rel-fixup "$origexec" \
 			"${patchedexec}.stripped" || continue
+		if [ $? -ne 0 ];then
+			echo "Failed to do relocation fixup."
+			exit 1
+		fi
 		/usr/bin/strip --strip-unneeded "${patchedexec}.stripped"
+		if [ $? -ne 0 ];then
+			echo "Failed to do stripped unneeded section."
+			exit 1
+		fi
 		$KPATCH_PATH/kpatch_strip --undo-link "$origexec" "${patchedexec}.stripped"
 		$KPATCH_PATH/kpatch_make -b "$buildid" -i "$patch_id" \
 			"${patchedexec}.stripped" -o "${patchedexec}.kpatch"
+		if [ $? -ne 0 ];then
+			echo "Failed to make patch."
+			exit 1
+		fi
 		cp "${patchedexec}.kpatch" "${LPMAKE_PATCHROOT}"/${buildid}.kpatch
 		echo "patch for ${origexec} is in ${LPMAKE_PATCHROOT}/${buildid}.kpatch"
 	done
