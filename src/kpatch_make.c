@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - kpatch_make: initialize fd to avoid unexpected close
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.10.12 - kpatch: clear code checker warnings
  * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
@@ -82,8 +85,8 @@ int main(int argc, char **argv)
 {
 	int ret = -1;
 	int opt;
-	int fd1;
-	int fdo = 1;
+	int fd1 = -1;
+	int fdo = -1;
 	void *buf;
 	struct stat st;
 	char *buildid = NULL;
