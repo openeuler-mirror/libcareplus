@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - kpatch_cc: Optimize build_multiple() a little bit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.11 - kpatch: fix code checker warning
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -844,6 +847,7 @@ static int build_multiple(void)
 	char aspath[PATH_MAX];
 	int i, j, rv;
 	int newargc = argc - ninput_files + 1 + 2 + 1 + 1;
+	int argnum;
 	const char *newargv[newargc];
 
 	i = j = 0;
@@ -855,17 +859,22 @@ static int build_multiple(void)
 
 		newargv[i++] = argv[j++];
 	}
-	newargc = i;
-	newargv[newargc + 4] = NULL;
 
-	newargv[newargc + 2] = "-o";
-	newargv[newargc + 3] = aspath;
+	argnum = i;
+	if (argnum + 4 > newargc) {
+		kpccfatal("Failed to build multiple due to buffer overflow.\n");
+	}
+
+	newargv[argnum + 4] = NULL;
+
+	newargv[argnum + 2] = "-o";
+	newargv[argnum + 3] = aspath;
 
 	for (i = 1; i < argc; i++) {
 		if (input_files[i] == NULL)
 			continue;
 
-		newargv[newargc + 1] = input_files[i];
+		newargv[argnum + 1] = input_files[i];
 		(void) get_assembler_filename(aspath, input_files[i]);
 
 		switch (get_file_type(input_files[i])) {
@@ -883,13 +892,13 @@ passthrough_file:
 			if (!kpatch_gensrc_asm)
 				goto passthrough_file;
 
-			newargv[newargc + 0] = "-E";
+			newargv[argnum + 0] = "-E";
 			rv = run_cmd(newargv, NULL);
 			if (rv)
 				goto out;
 			break;
 		case SRC_FILE:
-			newargv[newargc + 0] = "-S";
+			newargv[argnum + 0] = "-S";
 			rv = run_cmd(newargv, NULL);
 			if (rv)
 				goto out;
