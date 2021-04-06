@@ -2,6 +2,7 @@ TARGETS = kpatch_gensrc \
 	  kpatch_make \
 	  kpatch_strip \
 	  libcare-cc \
+	  libcare-server \
 	  libcare-client \
 	  libcare-ctl \
 	  libcare-dump
@@ -45,9 +46,13 @@ kpatch_make: kpatch_make.o kpatch_log.o
 LIBUNWIND_LIBS := $(shell pkg-config --libs libunwind libunwind-ptrace)
 
 
-libcare-ctl: kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
+libcare-ctl: libcare-ctl.o kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
 libcare-ctl: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
 libcare-ctl: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
+
+libcare-server: libcare-server.o kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
+libcare-server: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
+libcare-server: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
 
 libcare-client: libcare-client.o
 
@@ -106,6 +111,7 @@ INSTALL ?= install
 install: all
 	$(INSTALL) -d $(DESTDIR)/$(bindir)
 	$(INSTALL) -m 0500 libcare-ctl $(DESTDIR)/$(bindir)/libcare-ctl
+	$(INSTALL) -m 0500 libcare-server $(DESTDIR)/$(bindir)/libcare-server
 	$(INSTALL) -m 0500 libcare-client $(DESTDIR)/$(bindir)/libcare-client
 	$(INSTALL) -m 0500 libcare-cc $(DESTDIR)/$(bindir)/libcare-cc
 	$(INSTALL) -m 0500 libcare-patch-make $(DESTDIR)/$(bindir)/libcare-patch-make
