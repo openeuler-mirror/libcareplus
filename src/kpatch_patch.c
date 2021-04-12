@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - patch: correct time comsume print
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.08 - ptrace/process/patch: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -22,6 +25,7 @@
  ******************************************************************************/
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -442,6 +446,7 @@ unpatch:
 int process_patch(int pid, void *_data)
 {
 	int ret;
+	bool is_calc_time = false;
 	kpatch_process_t _proc, *proc = &_proc;
 	struct patch_data *data = _data;
 	struct timeval start_tv, end_tv;
@@ -495,6 +500,7 @@ int process_patch(int pid, void *_data)
 	if (ret <= 0)
 		goto out_free;
 
+	is_calc_time = true;
 	gettimeofday(&start_tv, NULL);
 	/* Finally, attach to process */
 	ret = kpatch_process_attach(proc);
@@ -514,12 +520,13 @@ int process_patch(int pid, void *_data)
 	if (storage_execute_after_script(storage, proc) < 0)
 		kperr("after script failed\n");
 
-
 out_free:
 	kpatch_process_free(proc);
-	gettimeofday(&end_tv, NULL);
-	frozen_time = GET_MICROSECONDS(end_tv, start_tv);
-	kpinfo("PID '%d' process patch frozen_time is %ld microsecond\n", pid, frozen_time);
+	if (is_calc_time) {
+		gettimeofday(&end_tv, NULL);
+		frozen_time = GET_MICROSECONDS(end_tv, start_tv);
+		kpinfo("PID '%d' process patch frozen_time is %ld microsecond\n", pid, frozen_time);
+	}
 
 out:
 	if (ret < 0) {
@@ -705,6 +712,7 @@ kpatch_unapply_patches(kpatch_process_t *proc,
 int process_unpatch(int pid, void *_data)
 {
 	int ret;
+	bool is_calc_time = 0;
 	kpatch_process_t _proc, *proc = &_proc;
 	struct unpatch_data *data = _data;
 	char **buildids = data->buildids;
@@ -714,32 +722,38 @@ int process_unpatch(int pid, void *_data)
 	unsigned long frozen_time;
 
 	ret = kpatch_process_init(proc, pid, /* start */ 0, /* send_fd */ -1);
-	if (ret < 0)
-		return -1;
+	if (ret < 0) {
+		kperr("cannot init process %d\n", pid);
+		goto out;
+	}
 
 	kpatch_process_print_short(proc);
 
+	is_calc_time = 1;
 	gettimeofday(&start_tv, NULL);
 	ret = kpatch_process_attach(proc);
 	if (ret < 0)
-		goto out;
+		goto out_free;
 
 	ret = kpatch_process_map_object_files(proc, patch_id);
 	if (ret < 0)
-		goto out;
+		goto out_free;
 
 	ret = kpatch_coroutines_find(proc);
 	if (ret < 0)
-		goto out;
+		goto out_free;
 
 	ret = kpatch_unapply_patches(proc, buildids, nbuildids, patch_id);
 
-out:
+out_free:
 	kpatch_process_free(proc);
-	gettimeofday(&end_tv, NULL);
-	frozen_time = GET_MICROSECONDS(end_tv, start_tv);
-	kpinfo("PID '%d' process unpatch frozen_time is %ld microsecond\n", pid, frozen_time);
+	if (is_calc_time) {
+		gettimeofday(&end_tv, NULL);
+		frozen_time = GET_MICROSECONDS(end_tv, start_tv);
+		kpinfo("PID '%d' process unpatch frozen_time is %ld microsecond\n", pid, frozen_time);
+	}
 
+out:
 	if (ret < 0) {
 		printf("Failed to cancel patches for %d\n", pid);
 		return ret;
