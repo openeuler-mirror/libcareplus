@@ -18,7 +18,7 @@
 
 %.kpatch: %.undo-link %
 	buildid=$(call get_buildid,$(word 2,$^))	&&		\
-	$(KPATCH_MAKE) -b $${buildid} $< -o $@		&&		\
+	$(KPATCH_MAKE) -b $${buildid} -i 0001 $< -o $@		&&		\
 	cp -fs $@ $(OBJDIR)/$${buildid}.kpatch
 
 $(OBJDIR)/%.o: $(OBJDIR)/%.s

@@ -10,7 +10,7 @@ $(TGT).kpatch: $(OBJ).o $(TGT)
 	# build kpatch
 	buildid=$(call get_buildid,$(TGT));			\
 	$(KPATCH_MAKE) $(TGT).stripped -o $@			\
-		-b $${buildid};					\
+		-b $${buildid} -i 0001;					\
 	cp -fs $@ $(OBJDIR)/$${buildid}.kpatch
 
 clean::
