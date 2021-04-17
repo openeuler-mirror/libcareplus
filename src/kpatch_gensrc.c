@@ -49,7 +49,7 @@ static int nr_must_adapt_syms;
 static int force_gotpcrel;
 static int force_global;
 
-static char* patch_func_file_name = "/etc/libcare.conf";
+static char* func_filter_config_file = "/etc/libcare.conf";
 
 static int is_func_in_patch_func_file(FILE *fp, kpstr_t *sym)
 {
@@ -74,24 +74,31 @@ static inline int in_syms_list(const char *filename, kpstr_t *sym,
                                const struct sym_desc *sym_arr,
                                int nr_syms, int cblock_type)
 {
-	int i, len, rv;
+	int i, c, len, rv;
 
 	/*
 	 * Since we need to ignore some unwanted function being patched,
-	 * so we will first check if there is a file called "patch_func_name".
+	 * so we will first check if there is a file called "libcare.conf".
 	 * If there isn't, we will continue as usual.
 	 * If there is, we will ignore those function which is not in the file.
 	 */
 	if (cblock_type == CBLOCK_FUNC && sym_arr == ignore_syms) {
-		FILE *fp = fopen(patch_func_file_name, "r");
+		FILE *fp = fopen(func_filter_config_file, "r");
 		if (fp == NULL) {
+			goto no_conf;
+		}
+
+		c = fgetc(fp);
+		/* If file is empty or first line is '\n' or ' ', we think the file
+		 * is not configured */
+		if (c == EOF || c == '\n' || c == ' ') {
 			goto no_conf;
 		}
 
 		rv = is_func_in_patch_func_file(fp, sym);
 
 		if (fclose(fp) != 0) {
-			kpfatal("Error in closing file %s\n", patch_func_file_name);
+			kpfatal("Error in closing file %s\n", func_filter_config_file);
 		}
 
 		/*
@@ -1579,6 +1586,7 @@ static void usage(void)
 	kplog(LOG_ERR, "    at a random 32-bit offset. Used in user-space patching.");
 	kplog(LOG_ERR, " --force-global - marks all function used in patch as global so the compiler will generate correct relocation");
 	kplog(LOG_ERR, "    for .kpatch.info section. Used in user-space patching.");
+	kplog(LOG_ERR, " --test-mode - currently running in a test environment, using test mode.");
 	kplog(LOG_ERR, "FLIST format:");
 	kplog(LOG_ERR, " FLIST is comma separated list of function names which can be prepanded with filename where this function defined.");
 	exit(1);
@@ -1602,6 +1610,7 @@ struct option long_opts[] = {
 	{"arch", 1, 0, 'a'},
 	{"input", 1, 0, 'i'},
 	{"ouput", 1, 0, 'o'},
+	{"test-mode", 0, 0, 't'},
 	{"dbg-filter", 0, 0, 'f'},
 	{"dbg-filter-eh-frame", 0, 0, DBG_FILTER_EH_FRAME},
 	{"dbg-filter-gcc-except-table", 0, 0, DBG_FILTER_GCC_EXCEPTION_TABLE},
@@ -1618,6 +1627,7 @@ struct option long_opts[] = {
 int main(int argc, char **argv)
 {
 	int err, ch, k = 0, dbgfilter = 0, dbgfilter_options = 0;
+	int test_mode = 0;
 	struct kp_file infile[2], outfile;
 
 	memset(&outfile, 0, sizeof(struct kp_file));
@@ -1646,6 +1656,9 @@ int main(int argc, char **argv)
 		case 'a':
 			if (!strcmp(optarg, "i686")) {arch = ARCH_X86_32; arch_bits = 32;}
 			if (!strcmp(optarg, "x86_64")) {arch = ARCH_X86_64; arch_bits = 64;}
+			break;
+		case 't':
+			test_mode = 1;
 			break;
 		case 'f':
 			dbgfilter = 1;
@@ -1683,6 +1696,10 @@ int main(int argc, char **argv)
 	}
 	if (optind != argc || outfile.f == NULL) {
 		usage();
+	}
+
+	if (test_mode) {
+		func_filter_config_file = NULL;
 	}
 
 	if (dbgfilter) {
