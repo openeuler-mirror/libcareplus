@@ -4,6 +4,7 @@ TARGETS = kpatch_gensrc \
 	  libcare-cc \
 	  libcare-client \
 	  libcare-ctl \
+	  libcare-dump \
 	  libcare-stresstest
 DEBUG = yes # comment out this line if not debug
 
@@ -59,6 +60,7 @@ kpatch_strip: kpatch_strip.o kpatch_elf_objinfo.o kpatch_log.o arch_strip.o
 kpatch_strip: LDLIBS = -lelf
 
 libcare-cc: kpatch_cc.o
+libcare-dump: libcare-dump.o
 
 $(TARGETS): %:
 	$(CC) -o $(@) $(^) $(STATIC_OPTS) $(LDLIBS)
@@ -118,5 +120,6 @@ install: all
 	$(INSTALL) -m 0500 kpatch_gensrc $(DESTDIR)/$(bindir)/kpatch_gensrc
 	$(INSTALL) -m 0500 kpatch_make $(DESTDIR)/$(bindir)/kpatch_make
 	$(INSTALL) -m 0500 kpatch_strip $(DESTDIR)/$(bindir)/kpatch_strip
+	$(INSTALL) -m 0500 libcare-dump $(DESTDIR)/$(bindir)/libcare-dump
 
 .PHONY:	all clean test tests tests-gensrc tests-strip
