@@ -133,6 +133,9 @@ struct object_file {
 
 	/* Is it an ELF or a mmap'ed regular file? */
 	unsigned int is_elf:1;
+
+	/* Is it an unpatch target */
+	unsigned int is_unpatch_target_elf:1;
 };
 
 struct kpatch_process {

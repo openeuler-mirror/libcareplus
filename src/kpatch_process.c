@@ -159,6 +159,7 @@ process_new_object(kpatch_process_t *proc,
 	memset(&o->ehdr, 0, sizeof(o->ehdr));
 	o->phdr = NULL;
 	o->is_elf = 0;
+	o->is_unpatch_target_elf = 0;
 	o->dynsyms = NULL;
 	o->ndynsyms = 0;
 	o->dynsymnames = NULL;
@@ -414,7 +415,7 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 {
 	struct object_file *o, *objpatch;
 	size_t found = 0;
-	size_t found_target = 0;
+	size_t unpatch_target_elf_num = 0;
 
 	list_for_each_entry(objpatch, &proc->objs, list) {
 
@@ -439,7 +440,8 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 							    list);
 				o->kpta = patchvma->inmem.start;
 				o->kpfile = objpatch->kpfile;
-				found_target = 1;
+				o->is_unpatch_target_elf = 1;
+				unpatch_target_elf_num++;
 			}
 
 			found++;
@@ -447,7 +449,7 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 		}
 	}
 
-	if (patch_id && !found_target) {
+	if (patch_id && !unpatch_target_elf_num) {
 		fprintf(stderr, "Failed to find target patch with patch_id=%s!\n", patch_id);
 		return -1;
 	}

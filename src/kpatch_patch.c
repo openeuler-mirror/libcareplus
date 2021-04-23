@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - process: add a flag to mark unpatch target elf
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.12 - patch: correct time comsume print
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -689,12 +692,9 @@ kpatch_unapply_patches(kpatch_process_t *proc,
 	int ret;
 	size_t unapplied = 0;
 
-	ret = kpatch_process_associate_patches(proc, patch_id);
-	if (ret < 0)
-		return ret;
-
 	list_for_each_entry(o, &proc->objs, list) {
-		if (o->is_patch || o->num_applied_patch == 0)
+		if (o->is_patch || o->num_applied_patch == 0 ||
+		    !o->is_unpatch_target_elf)
 			continue;
 
 		if (!kpatch_should_unapply_patch(o, buildids, nbuildids))
