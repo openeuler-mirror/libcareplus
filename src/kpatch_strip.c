@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - strip: settle libcare-dump output elf file can't be objdump bug
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.11 - return: make every return properly other than direct-exit
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -212,6 +215,8 @@ static int kpatch_strip(Elf *elfin, Elf *elfout)
 		} else {
 			kpinfo("don't need it\n");
 			shout.sh_type = SHT_NOBITS;
+			shout.sh_link = 0;
+			shout.sh_info = 0;
 		}
 		if (!gelf_update_shdr(scnout, &shout)) {
 			kperr("Failed to do gelf_update_shdr need");
