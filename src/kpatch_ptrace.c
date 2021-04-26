@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - misc: add -D_FORTIFY_SOURCE=2 and fix return check
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.08 - ptrace/process/patch: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  ******************************************************************************/
@@ -482,9 +485,12 @@ get_threadgroup_id(int tid)
 		return -1;
 
 	while (!feof(fh)) {
-		if (fscanf(fh, "Tgid: %d", &pid) == 1)
+		if (fscanf(fh, "Tgid: %d", &pid) == 1) {
 			break;
-		fgets(buf, sizeof(buf), fh);
+		}
+		if (fgets(buf, sizeof(buf), fh) == NULL) {
+			break;
+		}
 	}
 
 	fclose(fh);

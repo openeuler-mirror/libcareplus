@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - misc: add -D_FORTIFY_SOURCE=2 and fix return check
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.11 - return: make every return properly other than direct-exit
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -163,7 +166,8 @@ kpatch_objinfo_load_tls_reladyn(kpatch_objinfo *oi)
 	Elf64_Rela *rela;
 	Elf_Scn *scn_rela_dyn;
 	Elf_Data *data_rela_dyn;
-	size_t nrela, i, nlast;
+	size_t nrela, i;
+	size_t nlast = -1;
 
 	if (oi->tlsreladyn != NULL)
 		return 0;
@@ -195,6 +199,11 @@ kpatch_objinfo_load_tls_reladyn(kpatch_objinfo *oi)
 	for (i = 0; i < nrela; rela++, i++) {
 		if (kpatch_is_tls_rela(rela))
 			nlast = i;
+	}
+
+	if (nlast == -1) {
+		kperr("no tls symbol in .rela.dyn");
+		return -1;
 	}
 
 	oi->ntlsreladyn = nlast + 1;

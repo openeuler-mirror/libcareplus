@@ -62,7 +62,9 @@ static int is_func_in_patch_func_file(FILE *fp, kpstr_t *sym)
 	rewind(fp);
 	while (!feof(fp)) {
 		memset(buffer, 0, sizeof(buffer));
-		fgets(buffer, sizeof(buffer), fp);
+		if (fgets(buffer, sizeof(buffer), fp) == NULL) {
+			break;
+		}
 		if (strncmp(buffer, sym->s, sym->l) == 0) {
 			return 1;
 		}

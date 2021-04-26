@@ -11,7 +11,7 @@ DEBUG = yes # comment out this line if not debug
 SRC_PATH := $(shell pwd)
 
 CC = gcc
-CFLAGS_MISC = -Wall -g -O2 -D_GNU_SOURCE -I $(SRC_PATH)
+CFLAGS_MISC = -Wall -g -O2 -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -I $(SRC_PATH)
 
 cc-option = $(shell if $(CC) $(CFLAGS_MISC) $(1) -S -o /dev/null -xc /dev/null \
 		> /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
@@ -29,7 +29,7 @@ VPATH = arch/x86
 endif
 
 ifdef DEBUG
-CFLAGS += -DDEBUG -O0 -g
+CFLAGS += -DDEBUG -O0 -g -Wno-cpp
 endif
 
 ifeq ($(STATIC),y)
