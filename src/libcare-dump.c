@@ -32,11 +32,52 @@
 
 void usage()
 {
-    printf("Usage: libcare-dump -c -i <input> -o <output>\n");
-    printf("    -c convert kpatch to elf\n");
-    printf("\n");
-    printf("    libcare-dump provide some auxiliary tools for help.\n");
-    exit(EXIT_FAILURE);
+    printf("Usage:\n");
+    printf("Display patch information and dump elf-format patch\n");
+    printf("libcare-dump -c -i <input> -o <output>\n");
+    printf("libcare-dump -H -i <input>\n");
+    printf("\nOptions:\n");
+    printf("  -H          - Display kpatch headers\n");
+    printf("  -c          - convert to elf\n");
+    printf("  -i          - input kpatch file\n");
+    printf("  -o          - output elf file\n");
+}
+
+int kpatch_dump_kpatch_header(const char *input_file)
+{
+    int fdi = -1;
+    int ret = -1;
+    int elf_size;
+    struct stat st;
+    struct kpatch_file kp;
+
+    fdi = open(input_file, O_RDONLY);
+    if (fdi == -1) {
+        printf("Can't open kpatch file '%s'\n", input_file);
+        return -1;
+    }
+    if (fstat(fdi, &st) == -1) {
+        printf("Can't stat kpatch file\n");
+        goto cleanup;
+    }
+    /* input kpatch file must bigger than sizeof(struct kpatch_file) */
+    elf_size = st.st_size - sizeof(struct kpatch_file);
+    if (elf_size <= 0) {
+        printf("Invalid kpatch file '%s'\n", input_file);
+        goto cleanup;
+    }
+
+    ret = read(fdi, &kp, sizeof(struct kpatch_file));
+    printf("%-25s %s\n", "Patch Name:", input_file);
+    printf("%-25s %s\n", "Magic:", kp.magic);
+    printf("%-25s %s\n", "Patch id:", kp.id);
+    printf("%-25s %s\n", "buildid:", kp.buildid);
+
+ cleanup:
+    if (fdi > 0) {
+        close(fdi);
+    }
+    return ret;
 }
 
 int kpatch_convert_to_elf(const char *input_file, const char *output_file)
@@ -108,15 +149,15 @@ int main(int argc, char **argv)
     int opt;
     int ret = -1;
     int convert_to_elf = 0;
+    int dump_kpatch_header = 0;
     char *input_file = NULL;
     char *output_file = NULL;
 
-    if (argc < 6) {
-        usage();
-    }
-
-    while ((opt = getopt(argc, argv, "i:o:c::")) != -1) {
+    while ((opt = getopt(argc, argv, "H::i:o:c::")) != -1) {
         switch (opt) {
+        case 'H':
+            dump_kpatch_header = 1;
+            break;
         case 'i':
             input_file = strdup(optarg);
             break;
@@ -127,24 +168,32 @@ int main(int argc, char **argv)
             convert_to_elf = 1;
             break;
         default:
-            free(input_file);
-            free(output_file);
             usage();
+            return -1;
         }
     }
 
-    if (input_file == NULL || output_file == NULL) {
-        free(input_file);
-        free(output_file);
+    if (input_file == NULL) {
         usage();
+        goto out;
+    }
+
+    if (dump_kpatch_header) {
+        ret = kpatch_dump_kpatch_header(input_file);
+        goto out;
+    }
+
+    if (output_file == NULL) {
+        usage();
+        goto out;
     }
 
     if (convert_to_elf) {
         ret = kpatch_convert_to_elf(input_file, output_file);
     }
 
+out:
     free(input_file);
     free(output_file);
     return ret;
 }
-
