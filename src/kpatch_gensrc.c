@@ -291,6 +291,11 @@ void str_do_gotpcrel(struct kp_file *f, char *dst, char *src)
 			goto out;
 		}
 
+                if (strstr(movdst.s, "%xmm") != NULL) {
+                        /* Is SSE (%xmm0, etc), bail out */
+                        goto out;
+                }
+
 		/* Use full 64-bit counterpart of the destination register
 		 * as the auxiliary register */
 		get_full_reg(&movdst, auxreg);

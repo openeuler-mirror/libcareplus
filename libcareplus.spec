@@ -1,7 +1,7 @@
 Version: 0.1.4
 Name: libcareplus
 Summary: LibcarePlus tools
-Release: 1%{?dist}
+Release: 2%{?dist}
 Group: Applications/System
 License: GPLv2
 Url: https://gitee.com/openeuler/libcareplus
@@ -160,5 +160,8 @@ exit 0
 %endif
 
 %changelog
+* Mon Apr 26 2021 Chuan Zheng <zhengchuan@huawei.com>
+- gensrc: skip vector instruction in str_do_gotpcrel
+
 * Tue Dec 8 2020 Ying Fang <fangying1@huawei.com>
 - Init the libcareplus package spec
