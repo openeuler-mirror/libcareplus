@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.12 - misc: fix trivial codex issues and compile warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -8,6 +13,7 @@
 #define handle_error(errstr) do { perror(errstr); exit(EXIT_FAILURE); } while (0)
 
 #define DEFAULT_SOCKET	"/var/run/libcare.sock"
+#define MAX_BUFLEN	16384
 
 int main(int argc, char **argv)
 {
@@ -34,7 +40,7 @@ int main(int argc, char **argv)
 		argv++;
 		argc--;
 	}
-	strncpy(sockaddr.sun_path, sockpath, sizeof(sockaddr.sun_path));
+	strncpy(sockaddr.sun_path, sockpath, sizeof(sockaddr.sun_path) - 1);
 
 	rv = connect(sock, (const struct sockaddr *)&sockaddr, sizeof(sockaddr));
 	if (rv == -1)
@@ -45,6 +51,9 @@ int main(int argc, char **argv)
 		buflen += strlen(argv[i]) + 1;
 	}
 	buflen++;
+	if (buflen <= 0 || buflen > MAX_BUFLEN) {
+		handle_error("buflen overflow");
+	}
 
 	p = buffer = malloc(buflen);
 	if (buffer == NULL)
@@ -63,6 +72,9 @@ int main(int argc, char **argv)
 		free(buffer);
 		buflen = 4096;
 		buffer = malloc(buflen);
+		if (buffer == NULL) {
+			handle_error("malloc buffer failed");
+		}
 	}
 
 	while (1) {
@@ -71,7 +83,9 @@ int main(int argc, char **argv)
 			break;
 		if (rv < 0)
 			handle_error("recv");
-		write(1, buffer, rv);
+		if (write(1, buffer, rv) < 0) {
+			handle_error("write failed");
+		}
 	}
 
 	close(sock);

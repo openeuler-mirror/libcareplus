@@ -94,8 +94,12 @@ int kpatch_convert_to_elf(const char *input_file, const char *output_file)
     munmap(buf, st.st_size);
 
  cleanup:
-    close(fdi);
-    close(fdo);
+    if (fdi > 0) {
+        close(fdi);
+    }
+    if (fdo > 0) {
+        close(fdo);
+    }
     return ret;
 }
 
@@ -123,11 +127,15 @@ int main(int argc, char **argv)
             convert_to_elf = 1;
             break;
         default:
+            free(input_file);
+            free(output_file);
             usage();
         }
     }
 
     if (input_file == NULL || output_file == NULL) {
+        free(input_file);
+        free(output_file);
         usage();
     }
 

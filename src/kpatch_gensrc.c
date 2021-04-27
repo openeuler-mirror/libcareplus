@@ -94,6 +94,9 @@ static inline int in_syms_list(const char *filename, kpstr_t *sym,
 		/* If file is empty or first line is '\n' or ' ', we think the file
 		 * is not configured */
 		if (c == EOF || c == '\n' || c == ' ') {
+			if (fclose(fp) != 0) {
+				kpfatal("Error in closing file %s\n", func_filter_config_file);
+			}
 			goto no_conf;
 		}
 

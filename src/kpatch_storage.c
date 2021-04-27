@@ -225,6 +225,7 @@ storage_stat_patch(kpatch_storage_t *storage,
 	int rv = PATCH_NOT_FOUND;
 	int i;
 
+	memset(&buf, 0, sizeof(struct stat));
 	for (i = 0; i < ARRAY_SIZE(pathtemplates); i++) {
 		sprintf(fname, pathtemplates[i], buildid);
 
