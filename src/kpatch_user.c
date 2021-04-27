@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.12 - libcare-info: rename Process as Target instead
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.10.07 - libcare-ctl: remove useless codes for info interface
  * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
@@ -235,7 +238,7 @@ object_info(struct object_file *o)
 	}
 
 	printf("%-25s %d\n", "Pid:", proc->pid);
-	printf("%-25s %s\n", "Process:", o->name);
+	printf("%-25s %s\n", "Target:", o->name);
 	printf("%-25s %s\n", "Build id:", buildid);
 	printf("%-25s %ld\n", "Applied patch number:", o->num_applied_patch);
 	list_for_each_entry(applied_patch, &o->applied_patch, list) {
