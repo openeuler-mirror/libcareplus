@@ -798,6 +798,10 @@ static int cblock_cmp(struct cblock *b0, struct cblock *b1, int flags)
 		s0 = cline(b0->f, i0); t0 = ctype(b0->f, i0);
 		s1 = cline(b1->f, i1); t1 = ctype(b1->f, i1);
 
+		if (csect(b0->f, i0) == NULL || csect(b1->f, i1) == NULL) {
+			kpfatal("Could not find vaild section!\n");
+		}
+
 		/* .comm directive implies .bss section (?). saw such a symbol put to .rodata by gcc! */
 		if ((flags & CBLOCK_CMP_SECT) && strcmp(csect(b0->f, i0)->name, csect(b1->f, i1)->name) &&
 				t0 != DIRECTIVE_LOCAL && t0 != DIRECTIVE_COMM && t1 != DIRECTIVE_LOCAL && t1 != DIRECTIVE_COMM)
