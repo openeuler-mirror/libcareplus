@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.13 - unpatch: enhance error handling and log records of object_unapply_patch
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.10.12 - process: add a flag to mark unpatch target elf
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -629,7 +632,6 @@ object_unapply_patch(struct object_file *o, int check_flag)
 		return ret;
 
 	orig_code_addr = o->kpta + o->kpfile.patch->user_undo;
-
 	for (i = 0; i < o->ninfo; i++) {
 		if (is_new_func(&o->info[i]))
 			continue;
@@ -637,16 +639,22 @@ object_unapply_patch(struct object_file *o, int check_flag)
 		if (check_flag && !(o->info[i].flags & PATCH_APPLIED))
 			continue;
 
+		kpinfo("restore origin code from 0x%lx to 0x%lx\n",
+				orig_code_addr + i * HUNK_SIZE, o->info[i].daddr);
 		ret = kpatch_process_memcpy(o->proc,
 					    o->info[i].daddr,
 					    orig_code_addr + i * HUNK_SIZE,
 					    HUNK_SIZE);
 		/* XXX(pboldin) We are in deep trouble here, handle it
 		 * by restoring the patch back */
-		if (ret < 0)
+		if (ret < 0) {
+			kplogerror("Failed to restore origin code momery\n");
 			return ret;
+		}
 	}
 
+	/* unmap allocated patch's vma */
+	kpinfo("munmap kpatch memory from 0x%lx\n", o->kpta);
 	ret = kpatch_munmap_remote(proc2pctx(o->proc),
 				   o->kpta,
 				   o->kpfile.size);

@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.13 - unpatch: enhance error handling and log records of object_unapply_patch
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.10.12 - misc: add -D_FORTIFY_SOURCE=2 and fix return check
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -572,21 +575,23 @@ kpatch_process_memcpy(kpatch_process_t *proc,
 
 	buf = malloc(size);
 	if (buf == NULL) {
-		kpdebug("FAIL\n");
+		kplogerror("Failed to malloc buffer\n");
 		return -1;
 	}
 
 	ret = kpatch_process_mem_read(proc, src, buf, size);
-	if (ret > 0)
-		ret = kpatch_process_mem_write(proc, buf, dst, size);
+	if (ret != size) {
+		kplogerror("Failed to read process memory (ret = %d)\n", ret);
+		goto cleanup;
+	}
 
-	if (ret < 0)
-		kpdebug("FAIL\n");
-	else
-		kpdebug("OK\n");
+	ret = kpatch_process_mem_write(proc, buf, dst, size);
+	if (ret < 0) {
+		kplogerror("Failed to write process memory\n");
+	}
 
+cleanup:
 	free(buf);
-
 	return ret;
 }
 
