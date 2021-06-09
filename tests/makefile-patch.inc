@@ -16,9 +16,11 @@
 	$(KPATCH_STRIP) --rel-fixup $(word 2,$^) $@
 	$(KPATCH_STRIP) --undo-link $(word 2,$^) $@
 
+PATCHID ?= 0001
+
 %.kpatch: %.undo-link %
 	buildid=$(call get_buildid,$(word 2,$^))	&&		\
-	$(KPATCH_MAKE) -b $${buildid} -i 0001 $< -o $@		&&		\
+	$(KPATCH_MAKE) -b $${buildid} -i $(PATCHID) $< -o $@		&&		\
 	cp -fs $@ $(OBJDIR)/$${buildid}.kpatch
 
 $(OBJDIR)/%.o: $(OBJDIR)/%.s

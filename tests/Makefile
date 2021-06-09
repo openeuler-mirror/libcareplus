@@ -19,6 +19,7 @@ clean: $(addprefix clean-,$(SUBDIRS))
 		$(CURDIR)/lpmake-patchroot	\
 		$(CURDIR)/lpmakelevel-patchroot
 	rm -f fastsleep.so
+	make -C execve clean
 
 clean-%: FORCE
 	make -C $* clean
@@ -39,7 +40,7 @@ lpmakelevel: $(LPMAKE_TGTS)
 
 lpmake-%: export LPMAKE_PATCHROOT := lpmake
 lpmake-%: FORCE
-	cd $*; $(CURDIR)/../src/libcare-patch-make --clean *.diff
+	cd $*; $(CURDIR)/../src/libcare-patch-make --clean *.diff -i 0001
 
 lpmake-patchroot: lpmake
 	mkdir -p $(CURDIR)/lpmake-patchroot
@@ -91,6 +92,6 @@ run-lpmakelevel: RUNTESTSFLAGS := -d lpmake -p $(CURDIR)/lpmakelevel-patchroot
 run-lpmakelevel: fastsleep.so
 run-lpmakelevel: run-startup-lpmakelevel
 
-run: run-build run-patchlevel run-lpmake run-lpmakelevel
+run: run-build run-patchlevel # run-lpmake run-lpmakelevel
 
 FORCE:

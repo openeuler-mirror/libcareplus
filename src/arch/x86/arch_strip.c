@@ -34,6 +34,119 @@
 #define SECTION_OFFSET_FOUND        0x0
 #define SECTION_NOT_FOUND       0x1
 
+/* Find Global Offset Table entry with the address of the TLS-variable
+ * specified by the `tls_offset`. Dynamic linker allocates Thread-Local storage
+ * as described in ABI and places the correct offset at that address in GOT. We
+ * then read this offset and use it in our jmp table.
+ */
+static unsigned long
+objinfo_find_tls_got_by_offset(kpatch_objinfo *oi,
+			       unsigned long tls_offset)
+{
+	Elf64_Rela *rela;
+	size_t nrela;
+
+	if (kpatch_objinfo_load_tls_reladyn(oi) < 0)
+		kpfatalerror("kpatch_objinfo_load_tls_reladyn");
+
+	rela = oi->tlsreladyn;
+	nrela = oi->ntlsreladyn;
+
+	for (; nrela != 0; rela++, nrela--) {
+		if (!kpatch_is_tls_rela(rela))
+			continue;
+
+		if (ELF64_R_SYM(rela->r_info) == 0 &&
+		    rela->r_addend == tls_offset)
+			return rela->r_offset;
+	}
+
+	kpfatalerror("cannot find GOT entry for %lx\n", tls_offset);
+	return 0;
+}
+
+static unsigned long
+objinfo_find_tls_got_by_symname(kpatch_objinfo *oi,
+				const char *symname)
+{
+	Elf64_Rela *rela;
+	size_t nrela;
+	Elf64_Sym sym;
+
+	if (kpatch_objinfo_load_tls_reladyn(oi) < 0)
+	    kpfatalerror("kpatch_objinfo_load_tls_reladyn");
+
+	rela = oi->tlsreladyn;
+	nrela = oi->ntlsreladyn;
+
+	for (; nrela != 0; rela++, nrela--) {
+		const char *origname;
+
+		if (!kpatch_is_tls_rela(rela))
+			continue;
+
+		if (ELF64_R_SYM(rela->r_info) == 0 ||
+				rela->r_addend != 0)
+			continue;
+
+		if (!gelf_getsym(oi->dynsymtab, ELF64_R_SYM(rela->r_info), &sym))
+			kpfatalerror("gelf_getsym");
+
+		origname = kpatch_objinfo_strptr(oi, DYNAMIC_NAME,
+						 sym.st_name);
+
+		if (strcmp(origname, symname) == 0 &&
+		    rela->r_addend == 0)
+			return rela->r_offset;
+	}
+
+	kpfatalerror("cannot find GOT entry for %s\n", symname);
+	return 0;
+}
+
+static inline int
+update_reloc_with_tls_got_entry(kpatch_objinfo *origbin,
+				kpatch_objinfo *patch,
+				GElf_Rela *rela,
+				GElf_Sym *sym)
+{
+	unsigned long got_offset;
+	char *symname, *tmp;
+
+	symname = (char *)kpatch_objinfo_strptr(patch, SYMBOL_NAME, sym->st_name);
+
+	tmp = strchr(symname, '@');
+	if (tmp != NULL) {
+		*tmp = '\0';
+	}
+
+	if (GELF_ST_BIND(sym->st_info) == STB_LOCAL ||
+	    sym->st_shndx != SHN_UNDEF) {
+	    /* This symbol should have a TPOFF64 entry in the GOT with
+	     * the offset of sym->st_value.  Find GOT entry for this TLS
+	     * variable. Make st_value point to that GOT entry and mark it
+	     * with flag.
+	     */
+
+		got_offset = objinfo_find_tls_got_by_offset(origbin, sym->st_value);
+	} else if (GELF_ST_BIND(sym->st_info) == STB_GLOBAL &&
+		   sym->st_shndx == SHN_UNDEF) {
+		   /* This is a GLOBAL symbol we require from some other binary.
+		    * It has a GOT entry that is referenced by the symbol name,
+		    * not the offset.
+		    */
+
+		got_offset = objinfo_find_tls_got_by_symname(origbin, symname);
+	}
+
+	if (rela->r_addend != got_offset) {
+		kpinfo("Changing GOTTPOFF symbol %s from %lx to %lx\n",
+		       symname, rela->r_addend, got_offset);
+		rela->r_addend = got_offset;
+	}
+	return 0;
+}
+
 /* Update relocation against TLS symbol.
  *
  * Thread-Local Storage variables require special care because they are
@@ -69,7 +182,6 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 				  unsigned char *text)
 {
 	switch (GELF_R_TYPE(rela->r_info)) {
-	case R_X86_64_GOTTPOFF:
 	case R_X86_64_TPOFF32: {
 		const char *symname;
 		int rv;
@@ -95,6 +207,9 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 
 		return 0;
 	}
+
+	case R_X86_64_GOTTPOFF:
+		return update_reloc_with_tls_got_entry(origbin, patch, rela, sym);
 
 	case R_X86_64_DTPOFF32:
 	case R_X86_64_DTPOFF64:
