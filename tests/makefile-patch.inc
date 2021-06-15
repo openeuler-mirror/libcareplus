@@ -27,14 +27,14 @@ $(OBJDIR)/%.o: $(OBJDIR)/%.s
 	$(AS) $< -o $@
 
 $(OBJDIR)/%.orig.s: %.c
-	$(CC) $< -S -o - $(CFLAGS) | \
+	$(CC) $< -S -O0 -o - $(CFLAGS) | \
 		$(KPATCH_GENSRC) --dbg-filter --test-mode --os=rhel6 -i - -o $@
 
 DIFFEXT ?= diff
 
 $(OBJDIR)/%.patched.s: %.c %.$(DIFFEXT)
 	patch -b -p1 < $(word 2,$^)
-	$(CC) $< -S -o - $(CFLAGS) | \
+	$(CC) $< -S -O0 -o - $(CFLAGS) | \
 		$(KPATCH_GENSRC) --dbg-filter --test-mode --os=rhel6 -i - -o $@
 	mv $<.orig $<
 
