@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.13 - ptrace: check pread return value
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.10.13 - unpatch: enhance error handling and log records of object_unapply_patch
  * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
@@ -40,7 +43,11 @@ kpatch_process_mem_read(kpatch_process_t *proc,
 			void *dst,
 			size_t size)
 {
-	return pread(proc->memfd, dst, size, (off_t)src);
+	size_t r;
+
+	r = pread(proc->memfd, dst, size, (off_t)src);
+
+	return r != size ? -1 : 0;
 }
 
 static int
@@ -131,13 +138,13 @@ int kpatch_process_mem_iter_peek(struct process_mem_iter *iter,
 	if (iter->buflen == 0 ||
 	    remote_addr < iter->base ||
 	    remote_addr + size > iter->base + iter->buflen) {
-		int ret;
+		size_t ret;
 
 		iter->base = remote_addr;
-		ret = kpatch_process_mem_read(iter->proc,
-					      remote_addr,
-					      iter->buffer,
-					      iter->buffer_size);
+		ret = pread(iter->proc->memfd,
+			    iter->buffer,
+			    iter->buffer_size,
+			    (off_t)remote_addr);
 		if (ret < size)
 			return -1;
 		iter->buflen = ret;
@@ -580,7 +587,7 @@ kpatch_process_memcpy(kpatch_process_t *proc,
 	}
 
 	ret = kpatch_process_mem_read(proc, src, buf, size);
-	if (ret != size) {
+	if (ret < 0) {
 		kplogerror("Failed to read process memory (ret = %d)\n", ret);
 		goto cleanup;
 	}

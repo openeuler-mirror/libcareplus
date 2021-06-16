@@ -199,7 +199,7 @@ process_get_object_type(kpatch_process_t *proc,
 				      vma->start,
 				      buf,
 				      bufsize);
-	if (ret <= SELFMAG)
+	if (ret < 0)
 		return -1;
 
 	if (type == OBJECT_KPATCH) {
