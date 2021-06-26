@@ -74,7 +74,7 @@ int kpatch_dump_kpatch_header(const char *input_file)
     printf("%-25s %s\n", "buildid:", kp.buildid);
 
  cleanup:
-    if (fdi > 0) {
+    if (fdi >= 0) {
         close(fdi);
     }
     return ret;
@@ -135,10 +135,10 @@ int kpatch_convert_to_elf(const char *input_file, const char *output_file)
     munmap(buf, st.st_size);
 
  cleanup:
-    if (fdi > 0) {
+    if (fdi >= 0) {
         close(fdi);
     }
-    if (fdo > 0) {
+    if (fdo >= 0) {
         close(fdo);
     }
     return ret;
