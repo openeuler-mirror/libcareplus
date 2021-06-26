@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.13 - codeDex: fix wrong return type
+ * Huawei Technologies Co., Ltd. <oscar.zhangbo@huawei.com>
+ *
  * 2021.10.13 - ptrace: check pread return value
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -43,7 +46,7 @@ kpatch_process_mem_read(kpatch_process_t *proc,
 			void *dst,
 			size_t size)
 {
-	size_t r;
+	ssize_t r;
 
 	r = pread(proc->memfd, dst, size, (off_t)src);
 
