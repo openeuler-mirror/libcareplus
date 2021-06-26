@@ -169,7 +169,7 @@ int main(int argc, char **argv)
             break;
         default:
             usage();
-            return -1;
+            goto out;
         }
     }
 
