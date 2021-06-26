@@ -1016,8 +1016,10 @@ int main(int argc, char *argv[])
 	}
 
 cleanup:
-	close(fd1);
-	close(fd2);
+	if (fd1 >= 0)
+		close(fd1);
+	if (fd2 >= 0)
+		close(fd2);
 
 	return ret;
 }
