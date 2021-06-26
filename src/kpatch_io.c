@@ -85,5 +85,6 @@ int create_file(struct kp_file *file, const char *fname)
 
 void close_file(struct kp_file *file)
 {
-	fclose(file->f);
+	if (file->f)
+		fclose(file->f);
 }

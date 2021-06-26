@@ -1598,7 +1598,6 @@ static void usage(void)
 	kplog(LOG_ERR, " --test-mode - currently running in a test environment, using test mode.");
 	kplog(LOG_ERR, "FLIST format:");
 	kplog(LOG_ERR, " FLIST is comma separated list of function names which can be prepanded with filename where this function defined.");
-	exit(1);
 }
 
 enum {
@@ -1638,6 +1637,7 @@ int main(int argc, char **argv)
 	int err, ch, k = 0, dbgfilter = 0, dbgfilter_options = 0;
 	int test_mode = 0;
 	struct kp_file infile[2], outfile;
+	int ret = -1;
 
 	memset(&outfile, 0, sizeof(struct kp_file));
 	outfile.f = NULL;
@@ -1701,10 +1701,12 @@ int main(int argc, char **argv)
 			break;
 		default:
 			usage();
+			goto cleanup;
 		}
 	}
 	if (optind != argc || outfile.f == NULL) {
 		usage();
+		goto cleanup;
 	}
 
 	if (test_mode) {
@@ -1717,8 +1719,8 @@ int main(int argc, char **argv)
 
 		init_multilines(&infile[0]);
 		debug_filter(&infile[0], &outfile, dbgfilter_options);
-		close_file(&outfile);
-		return 0;
+		ret = 0;
+		goto cleanup;
 	}
 
 	if (k < 2)
@@ -1733,7 +1735,10 @@ int main(int argc, char **argv)
 	analyze_func_cblocks(&infile[0], &infile[1]);
 	analyze_other_cblocks(&infile[0], &infile[1]);
 	write_cblocks(&infile[0], &infile[1], &outfile);
+	ret = 0;
+
+cleanup:
 	close_file(&outfile);
 
-	return 0;
+	return ret;
 }
