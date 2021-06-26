@@ -163,8 +163,10 @@ unmap:
 	munmap(buf, st.st_size);
 
 cleanup:
-	close(fdo);
-	close(fd1);
+	if (fdo >= 0)
+		close(fdo);
+	if (fd1 >= 0)
+		close(fd1);
 	free(buildid);
 	free(outputname);
 	free(patch_id);
