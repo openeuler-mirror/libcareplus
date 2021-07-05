@@ -656,6 +656,7 @@ process_list_threads(kpatch_process_t *proc,
 
 dealloc:
 	free(pids);
+	*ppids = NULL;
 	*alloc = *npids = 0;
 	return -1;
 }
