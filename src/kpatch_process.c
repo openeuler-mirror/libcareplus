@@ -598,7 +598,23 @@ process_detach(kpatch_process_t *proc)
 		unw_destroy_addr_space(proc->ptrace.unwd);
 
 	list_for_each_entry_safe(p, ptmp, &proc->ptrace.pctxs, list) {
-		if (kpatch_ptrace_detach(p) == -ESRCH) {
+		/**
+		 * If kpatch_ptrace_detach(p) return -ESRCH, there are two situations,
+		 * as described below:
+		 * 1. the specified thread does not exist, it means the thread dead
+		 *    during the attach processing, so we need to wait for the thread
+		 *    to exit;
+		 * 2. the specified thread is not currently being traced by the libcare,
+		 *    or is not stopped, so we just ignore it;
+		 *
+		 * We using the running variable of the struct kpatch_ptrace_ctx to
+		 * distinguish them:
+		 * 1. if pctx->running = 0, it means the thread is traced by libcare, we
+		 *    will wait for the thread to exit;
+		 * 2. if pctx->running = 1, it means we can not sure about the status of
+		 *    the thread, we just ignore it;
+		 */
+		if (kpatch_ptrace_detach(p) == -ESRCH && !p->running) {
 			do {
 				pid = waitpid(p->pid, &status, __WALL);
 			} while (pid > 0 && !WIFEXITED(status));
