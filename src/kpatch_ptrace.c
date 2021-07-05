@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2021.10.13 - codeDex: fix uninitialing buf
+ * Huawei Technologies Co., Ltd. <oscar.zhangbo@huawei.com>
+ *
  * 2021.10.13 - codeDex: fix wrong return type
  * Huawei Technologies Co., Ltd. <oscar.zhangbo@huawei.com>
  *
@@ -588,6 +591,7 @@ kpatch_process_memcpy(kpatch_process_t *proc,
 		kplogerror("Failed to malloc buffer\n");
 		return -1;
 	}
+	memset(buf, 0, size);
 
 	ret = kpatch_process_mem_read(proc, src, buf, size);
 	if (ret < 0) {
