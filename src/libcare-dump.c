@@ -159,9 +159,11 @@ int main(int argc, char **argv)
             dump_kpatch_header = 1;
             break;
         case 'i':
+            free(input_file);
             input_file = strdup(optarg);
             break;
         case 'o':
+            free(output_file);
             output_file = strdup(optarg);
             break;
         case 'c':

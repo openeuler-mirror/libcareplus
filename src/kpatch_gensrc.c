@@ -1655,6 +1655,7 @@ int main(int argc, char **argv)
 			k++;
 			break;
 		case 'o':
+			close_file(&outfile);
 			if ((err = create_file(&outfile, optarg)))
 				kpfatal("Can't open output file '%s': %s\n", optarg, strerror(err));
 			break;
