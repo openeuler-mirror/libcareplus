@@ -407,7 +407,7 @@ kpatch_fixup_rela_one(kpatch_objinfo *origbin,
 		rv = kpatch_arch_fixup_rela_update_tls(origbin, patch, rel,
 						       sym, sh_text, text);
 		if (rv < 0)
-			kperr("Faileed to do kpatch_fixup_rela_update_tls");
+			kperr("Failed to do kpatch_fixup_rela_update_tls");
 
 		return rv;
 	}

@@ -137,6 +137,9 @@ update_reloc_with_tls_got_entry(kpatch_objinfo *origbin,
 		    */
 
 		got_offset = objinfo_find_tls_got_by_symname(origbin, symname);
+	} else {
+		kperr("get symbol '%s' got_offset failed\n", symname);
+		return -1;
 	}
 
 	if (rela->r_addend != got_offset) {
