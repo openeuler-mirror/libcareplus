@@ -131,6 +131,8 @@ process_new_object(kpatch_process_t *proc,
 		kpdebug("FAIL\n");
 		return NULL;
 	}
+	memset(o, 0, sizeof(struct object_file));
+
 	list_init(&o->list);
 	list_init(&o->vma);
 	list_init(&o->applied_patch);
@@ -164,6 +166,7 @@ process_new_object(kpatch_process_t *proc,
 	o->ndynsyms = 0;
 	o->dynsymnames = NULL;
 	init_kp_file(&o->kpfile);
+
 	list_add(&o->list, &proc->objs);
 	proc->num_objs++;
 	kpdebug("OK\n");
