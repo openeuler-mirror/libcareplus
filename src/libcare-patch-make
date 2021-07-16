@@ -224,6 +224,9 @@ main() {
 		--)
 			shift; break;
 			;;
+		*)
+			usage 1
+			;;
 		esac
 	done
 
