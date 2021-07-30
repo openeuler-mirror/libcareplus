@@ -8,8 +8,8 @@
 +	if (p == &v && v == 0xDEADBEAF) {
 +		printf("TLS PATCHED\n");
 +	} else {
-+		/* Provoke segfault w/o messing with %rax */
-+		asm ("movl $0, %ebx; movl $0, (%rbx)");
++		/* Provoke segfault */
++		strlen(NULL);
 +	}
  }
  

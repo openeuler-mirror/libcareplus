@@ -510,6 +510,22 @@ should_skip() {
 		fi
 	fi
 
+	if test "$ARCH" = "aarch64"; then
+		if test "$1" = "tls_shared" || \
+		   test "$1" = "tls_simple" || \
+		   test "$1" = "ref_glibc_data" || \
+		   test "$1" = "fail_coro_listed" || \
+		   test "$1" = "fail_coro"; then
+			return 0
+		fi
+
+		if test "$FLAVOR" = "test_unpatch_files"; then
+			if test "$1" = "frame_finish"; then
+				return 0
+			fi
+		fi
+	fi
+
 	case "$1" in
 	ifunc)
 		if grep -q 'release 6' /etc/redhat-release 2>/dev/null; then
@@ -542,6 +558,7 @@ main() {
 
 	DESTDIR=build
 	FLAVOR=test_patch_files
+	ARCH=$(uname -m)
 	while getopts ":f:vqd:p:" opt "$@"; do
 		case $opt in
 			f)
@@ -584,6 +601,13 @@ main() {
 			echo "Unknown flavor $FLAVOR"
 			exit 1
 	esac
+
+	if test "$ARCH" = "aarch64"; then
+		if test "$FLAVOR" = "test_patch_startup" || \
+		   test "$FLAVOR" = "test_patch_startup_ld_linux"; then
+			exit 0
+		fi
+	fi
 
 	PATCHROOT="${PATCHROOT-$PWD/$DESTDIR-patchroot}"
 

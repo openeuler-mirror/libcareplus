@@ -17,7 +17,7 @@ void do_work2() {
 	while (1) {
 		print_greetings();
 		for (i = 0; i < INT_MAX / 50; i++)
-			asm ("pause");
+			sleep(1);
 	}
 }
 
