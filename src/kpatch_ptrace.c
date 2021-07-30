@@ -441,7 +441,7 @@ int
 wait_for_stop(struct kpatch_ptrace_ctx *pctx,
 	      const void *data)
 {
-	int ret, status = 0, pid = (int)(uintptr_t)data ?: pctx->pid;
+	int ret, status = 0, pid = (int)(uintptr_t)data ? : pctx->pid;
 	kpdebug("wait_for_stop(pctx->pid=%d, pid=%d)\n", pctx->pid, pid);
 
 	while (1) {
@@ -479,11 +479,11 @@ kpatch_execute_remote(struct kpatch_ptrace_ctx *pctx,
 		      struct user_regs_struct *pregs)
 {
 	return kpatch_arch_execute_remote_func(pctx,
-					  code,
-					  codelen,
-					  pregs,
-					  wait_for_stop,
-					  NULL);
+					       code,
+					       codelen,
+					       pregs,
+					       wait_for_stop,
+					       NULL);
 }
 
 /* FIXME(pboldin) buf might be too small */
@@ -528,7 +528,7 @@ kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 	kpdebug("mmap_remote: 0x%lx+%lx, %x, %x, %d, %lx\n", addr, length,
 		prot, flags, fd, offset);
 	ret = kpatch_arch_syscall_remote(pctx, __NR_mmap, (unsigned long)addr,
-				    length, prot, flags, fd, offset, &res);
+					 length, prot, flags, fd, offset, &res);
 	if (ret < 0)
 		return 0;
 	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {
@@ -547,7 +547,7 @@ int kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
 
 	kpdebug("munmap_remote: 0x%lx+%lx\n", addr, length);
 	ret = kpatch_arch_syscall_remote(pctx, __NR_munmap, (unsigned long)addr,
-				    length, 0, 0, 0, 0, &res);
+					 length, 0, 0, 0, 0, &res);
 	if (ret < 0)
 		return -1;
 	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {

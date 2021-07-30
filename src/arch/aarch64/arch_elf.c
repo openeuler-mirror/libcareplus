@@ -110,8 +110,8 @@ static int kpatch_arch_apply_relocate(GElf_Rela *r, GElf_Sym *s,
 		 */
 		kpdebug("R_AARCH64_LD64_GOT_LO12_NC: val=0x%lx\n", val);
 		if (GELF_ST_TYPE(s->st_info) == STT_OBJECT &&
-		   s->st_shndx == SHN_UNDEF &&
-		   GELF_ST_BIND(s->st_info) == STB_GLOBAL) {
+		    s->st_shndx == SHN_UNDEF &&
+		    GELF_ST_BIND(s->st_info) == STB_GLOBAL) {
 			/* This case is for a new global var from DSO */
 			val += 8;
 			val = ((val & 0xfff) >> 3) << 10;

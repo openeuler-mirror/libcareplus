@@ -192,9 +192,9 @@ wait_for_mmap(struct kpatch_ptrace_ctx *pctx,
 }
 
 int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
-		unsigned long arg1, unsigned long arg2, unsigned long arg3,
-		unsigned long arg4, unsigned long arg5, unsigned long arg6,
-		unsigned long *res)
+			       unsigned long arg1, unsigned long arg2, unsigned long arg3,
+			       unsigned long arg4, unsigned long arg5, unsigned long arg6,
+			       unsigned long *res)
 {
 	struct user_regs_struct regs;
 
@@ -267,7 +267,7 @@ poke:
 }
 
 int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
-				unsigned long *addr)
+				     unsigned long *addr)
 {
 	struct user_regs_struct regs;
 	unsigned char callrax[] = {
@@ -366,7 +366,7 @@ poke_back:
 }
 
 void copy_regs(struct user_regs_struct *dst,
-		      struct user_regs_struct *src)
+	       struct user_regs_struct *src)
 {
 #define COPY_REG(x) dst->x = src->x
 	COPY_REG(r15);
@@ -388,8 +388,8 @@ void copy_regs(struct user_regs_struct *dst,
 }
 
 int kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
-		      struct timespec *timeout,
-		      const sigset_t *sigset)
+			       struct timespec *timeout,
+			       const sigset_t *sigset)
 {
 	struct kpatch_ptrace_ctx *pctx;
 	siginfo_t siginfo;
