@@ -33,8 +33,8 @@ struct process_mem_iter *
 kpatch_process_mem_iter_init(kpatch_process_t *proc);
 void kpatch_process_mem_iter_free(struct process_mem_iter *iter);
 int kpatch_process_mem_iter_peek_ulong(struct process_mem_iter *iter,
-				       unsigned long *dst,
-				       unsigned long remote_addr);
+									   unsigned long *dst,
+									   unsigned long remote_addr);
 int kpatch_process_mem_iter_peek(struct process_mem_iter *iter,
 				 void *dst, size_t size,
 				 unsigned long remote_addr);

@@ -44,6 +44,11 @@ elf_object_peek_phdr(struct object_file *o)
 					     sizeof(o->ehdr));
 		if (rv < 0)
 			return rv;
+
+		if (o->ehdr.e_phnum <= 0) {
+			kperr("Wrong ELF header: ehdr.e_phnum: %d\n", o->ehdr.e_phnum);
+			return -1;
+		}
 	}
 
 	if (o->phdr == NULL) {
@@ -72,11 +77,19 @@ kpatch_elf_object_set_ehdr(struct object_file *o,
 
 
 	if (memcmp(buf, ELFMAG, SELFMAG)) {
-		kpdebug("magic(%s) = %x%x%x%x\n", o->name, buf[0], buf[1], buf[2], buf[3]);
+		kperr("magic(%s) = %x%x%x%x\n", o->name, buf[0], buf[1], buf[2], buf[3]);
 		return -1;
 	}
 
 	memcpy(&o->ehdr, buf, sizeof(o->ehdr));
+
+	/* check the metadata in o->ehdr */
+	if (o->ehdr.e_phentsize != sizeof(Elf64_Phdr) ||
+			o->ehdr.e_phnum <= 0) {
+		kperr("Wrong ELF header: ehdr.e_phentsize: %d, ehdr.e_phnum: %d\n",
+				o->ehdr.e_phentsize, o->ehdr.e_phnum);
+		return -1;
+	}
 
 	if (bufsize < o->ehdr.e_phoff + o->ehdr.e_phentsize * o->ehdr.e_phnum)
 		return 0;

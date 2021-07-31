@@ -120,6 +120,7 @@ kpatch_process_mem_iter_init(kpatch_process_t *proc)
 	if (!iter)
 		return NULL;
 
+	memset(iter, 0, sizeof(*iter) + pagesize);
 	iter->proc = proc;
 	iter->buflen = 0;
 
@@ -161,8 +162,8 @@ int kpatch_process_mem_iter_peek(struct process_mem_iter *iter,
 }
 
 int kpatch_process_mem_iter_peek_ulong(struct process_mem_iter *iter,
-				       unsigned long *dst,
-				       unsigned long remote_addr)
+									   unsigned long *dst,
+									   unsigned long remote_addr)
 {
 	return kpatch_process_mem_iter_peek(iter, dst, sizeof(*dst), remote_addr);
 }
@@ -523,7 +524,7 @@ kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 		   off_t offset)
 {
 	int ret;
-	unsigned long res;
+	unsigned long res = 0;
 
 	kpdebug("mmap_remote: 0x%lx+%lx, %x, %x, %d, %lx\n", addr, length,
 		prot, flags, fd, offset);
