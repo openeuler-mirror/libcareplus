@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 	if (verbose)
 		log_level = LOG_DEBUG;
 
-	if (buildid == NULL || patch_id == NULL || *patch_id == '\0')
+	if (buildid == NULL || patch_id == NULL || *patch_id == '\0' || optind >= argc)
 		usage();
 
 	if (strlen(buildid) !=  KPATCH_BUILDID_LEN) {
