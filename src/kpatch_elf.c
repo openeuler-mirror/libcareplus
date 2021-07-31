@@ -631,6 +631,7 @@ elf_object_load_dynsym(struct object_file *o)
 out_free:
 	if (rv < 0) {
 		free(buffer);
+		o->dynsyms = NULL;
 	}
 	free(dynamics);
 
