@@ -861,7 +861,7 @@ static int build_multiple(void)
 	}
 
 	argnum = i;
-	if (argnum + 4 > newargc) {
+	if (argnum + 4 >= newargc) {
 		kpccfatal("Failed to build multiple due to buffer overflow.\n");
 	}
 
