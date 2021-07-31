@@ -121,7 +121,7 @@ kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 
 	/* Suddenly, /proc/pid/mem gets invalidated */
 	{
-		char buf[128];
+		char buf[sizeof("/proc/0123456789/mem")];
 		close(proc->memfd);
 
 		snprintf(buf, sizeof(buf), "/proc/%d/mem", proc->pid);
