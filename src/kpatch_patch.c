@@ -548,6 +548,23 @@ out:
 	return ret;
 }
 
+static int
+object_kpatch_info_realloc(struct object_file *o, size_t nalloc)
+{
+	struct kpatch_info *tmp = NULL;
+
+	tmp = realloc(o->info, nalloc * sizeof(struct kpatch_info));
+	if (tmp == NULL) {
+		kperr("Failed to realloc o->info!\n");
+		free(o->info);
+		o->info = NULL;
+		o->ninfo = 0;
+		return -1;
+	}
+
+	o->info = tmp;
+	return 0;
+}
 
 /*****************************************************************************
  * Patch cancellcation subroutines and cmd_unpatch_user
@@ -592,10 +609,7 @@ object_find_applied_patch_info(struct object_file *o)
 
 		if (o->ninfo == nalloc) {
 			nalloc += 16;
-			o->info = realloc(o->info, nalloc * sizeof(tmpinfo));
-			if (o->info == NULL) {
-				kperr("Failed to realloc o->info!\n");
-				o->ninfo = 0;
+			if (object_kpatch_info_realloc(o, nalloc) < 0) {
 				ret = -1;
 				goto err;
 			}
