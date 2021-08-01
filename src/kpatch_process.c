@@ -236,6 +236,8 @@ process_add_object_vma(kpatch_process_t *proc,
 	unsigned char header_buf[1024];
 	struct object_file *o;
 
+	/* Event though process_get_object_type() return -1,
+	 * we still need continue process. */
 	object_type = process_get_object_type(proc,
 					      vma,
 					      name,
@@ -276,8 +278,10 @@ process_add_object_vma(kpatch_process_t *proc,
 		rv = kpatch_elf_object_set_ehdr(o,
 						header_buf,
 						sizeof(header_buf));
-		if (rv < 0)
+		if (rv < 0) {
 			kperr("unable to kpatch_elf_object_set_ehdr\n");
+			return -1;
+		}
 	}
 
 	return 0;
@@ -405,6 +409,7 @@ process_add_vm_hole(kpatch_process_t *proc,
 	if (hole == NULL)
 		return NULL;
 
+	memset(hole, 0, sizeof(*hole));
 	hole->start = hole_start;
 	hole->end = hole_end;
 
@@ -828,7 +833,6 @@ process_print_cmdline(kpatch_process_t *proc)
 		}
 	}
 
-
 err_close:
 	close(fd);
 }
@@ -1073,8 +1077,7 @@ kpatch_object_allocate_patch(struct object_file *o,
 				  PROT_READ | PROT_WRITE | PROT_EXEC,
 				  MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (addr == 0) {
-		kplogerror("remote alloc of 0x%lx bytes failed\n",
-			   addr);
+		kplogerror("remote alloc memory for patch failed\n");
 		return -1;
 	}
 
@@ -1185,7 +1188,7 @@ kpatch_process_get_obj_by_regex(kpatch_process_t *proc, const char *regex)
 
 struct object_file *
 kpatch_object_get_applied_patch_by_id(struct object_file *o,
-                                            const char *patch_id)
+									  const char *patch_id)
 {
 	struct obj_applied_patch *applied_patch;
 

@@ -50,8 +50,8 @@ object_find_patch_region(struct object_file *obj,
 			 struct vm_hole **hole)
 {
 	struct list_head *head = &obj->proc->vmaholes;
-	struct vm_hole *left_hole = obj->previous_hole,
-		       *right_hole = next_hole(left_hole, head);
+	struct vm_hole *left_hole = obj->previous_hole;
+	struct vm_hole *right_hole = next_hole(left_hole, head);
 	unsigned long max_distance = 0x8000000;
 	struct obj_vm_area *sovma;
 
@@ -112,4 +112,3 @@ object_find_patch_region(struct object_file *obj,
 
 	return region_start;
 }
-
