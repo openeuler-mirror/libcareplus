@@ -116,6 +116,7 @@ int is_data_def(char *s, int type);
 struct cblock *cblock_find_by_name(struct kp_file *f, kpstr_t *nm);
 struct cblock *cblock_find_by_human_name(struct kp_file *f, kpstr_t *nm);
 void cblocks_init(struct kp_file *f);
+void cblock_free_by_start(struct rb_node *node);
 void cblock_print2(struct cblock *b0, struct cblock *b1);
 struct cblock *cblock_first(struct kp_file *f);
 struct cblock *cblock_next(struct cblock *blk);

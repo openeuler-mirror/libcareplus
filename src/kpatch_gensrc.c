@@ -1758,6 +1758,12 @@ int main(int argc, char **argv)
 cleanup:
 	rb_destroy(&infile[0].renames, rename_free);
 	rb_destroy(&infile[1].renames, rename_free);
+	/*
+	 * The nodes in cblocks_by_start, cblocks_by_name, and cblocks_by_human_name
+	 * are same, so only need to free nodes in one tree.
+	 */
+	rb_destroy(&infile[0].cblocks_by_start, cblock_free_by_start);
+	rb_destroy(&infile[1].cblocks_by_start, cblock_free_by_start);
 	close_file(&infile[0]);
 	close_file(&infile[1]);
 	close_file(&outfile);

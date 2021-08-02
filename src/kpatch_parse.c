@@ -431,6 +431,12 @@ void cblocks_init(struct kp_file *f)
 	}
 }
 
+void cblock_free_by_start(struct rb_node *node)
+{
+	struct cblock *cb = rb_entry(node, struct cblock, rbs);
+	free(cb);
+}
+
 void cblock_print2(struct cblock *b0, struct cblock *b1)
 {
 	int i0, i1;
