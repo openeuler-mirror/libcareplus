@@ -349,8 +349,9 @@ object_destroy(struct object_file *o)
 	if (o->is_patch) {
 		free(o->info);
 	}
-	if (o->num_applied_patch == 0)
+	if (o->kpfile.patch) {
 		free(o->kpfile.patch);
+	}
 	free(o);
 }
 
