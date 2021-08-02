@@ -394,7 +394,8 @@ object_apply_patch(struct object_file *o)
 				       o->kpta,
 				       kp->total_size);
 	if (ret < 0)
-		return -1;
+		return ret;
+
 	if (o->jmp_table) {
 		ret = kpatch_process_mem_write(o->proc,
 					       o->jmp_table,

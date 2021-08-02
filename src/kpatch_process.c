@@ -507,6 +507,8 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 		r = sscanf(line, "%lx-%lx %s %lx %x:%x %d %255s",
 			   &start, &end, perms, &offset,
 			   &maj, &min, &inode, name_);
+		if (r == EOF)
+			goto error;
 		if (r != 8)
 			strcpy(name, "[anonymous]");
 
