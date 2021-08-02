@@ -34,6 +34,7 @@ int read_file(struct kp_file *file, const char *fname)
 {
 	int sz = 64;
 	char buf[BUFSIZE];
+	char *tmp = NULL;
 
 	memset(file, 0, sizeof(*file));
 	if (!strcmp(fname, "-"))
@@ -43,11 +44,13 @@ int read_file(struct kp_file *file, const char *fname)
 
 	file->rpath = realpath(fname, NULL);
 	if (!file->rpath)
-		file->rpath = "";
-	file->dirname = strdup(file->rpath);
-	file->dirname = dirname(file->dirname);
-	file->basename = strdup(file->rpath);
-	file->basename = basename(file->basename);
+		file->rpath = strdup("");
+	tmp = strdup(file->rpath);
+	file->dirname = strdup(dirname(file->dirname));
+	free(tmp);
+	tmp = strdup(file->rpath);
+	file->basename = strdup(basename(file->basename));
+	free(tmp);
 
 	if (!file->f)
 		return errno;
@@ -67,6 +70,7 @@ int read_file(struct kp_file *file, const char *fname)
 	}
 	file->lines[0] = "";	/* make line with index 0 to be empty, so that our line numbers would match and editor for easier debugging, i.e. we start from index=1 */
 	fclose(file->f);
+	file->f = NULL;
 	return 0;
 }
 
@@ -85,6 +89,23 @@ int create_file(struct kp_file *file, const char *fname)
 
 void close_file(struct kp_file *file)
 {
+	int i;
+
+	if (!file) {
+		return;
+	}
+
 	if (file->f)
 		fclose(file->f);
+
+	/* nr_lines starts from 1 */
+	for (i = 1; i < file->nr_lines; ++i) {
+		free(file->lines[i]);
+	}
+	free(file->lines);
+
+	free(file->lines_num);
+	free(file->rpath);
+	free(file->dirname);
+	free(file->basename);
 }
