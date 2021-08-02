@@ -1639,6 +1639,10 @@ int main(int argc, char **argv)
 	struct kp_file infile[2], outfile;
 	int ret = -1;
 
+	memset(&infile[0], 0, sizeof(struct kp_file));
+	infile[0].f = NULL;
+	memset(&infile[1], 0, sizeof(struct kp_file));
+	infile[1].f = NULL;
 	memset(&outfile, 0, sizeof(struct kp_file));
 	outfile.f = NULL;
 	while ((ch = getopt_long(argc, argv, "d:O:i:o:a:f", long_opts, 0)) != -1) {
@@ -1739,6 +1743,8 @@ int main(int argc, char **argv)
 	ret = 0;
 
 cleanup:
+	close_file(&infile[0]);
+	close_file(&infile[1]);
 	close_file(&outfile);
 
 	return ret;
