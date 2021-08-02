@@ -71,6 +71,7 @@ struct section_desc {
 struct section_desc *find_section(char *name);
 struct section_desc *csect(struct kp_file *f, int l);
 void init_sections(struct kp_file *f);
+void free_sections(struct kp_file *f);
 
 int is_data_sect(struct section_desc *sect);
 int is_code_sect(struct section_desc *sect);

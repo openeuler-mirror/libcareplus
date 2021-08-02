@@ -544,6 +544,7 @@ static struct section_desc *dup_section(struct section_desc *sect)
 	}
 
 	*s = *sect;
+	s->name = strdup(sect->name);
 	s->prev = NULL;
 	memset(&s->rbnm, 0, sizeof(s->rbnm));
 	return s;
@@ -664,6 +665,24 @@ void init_sections(struct kp_file *f)
 			f->section[i] = f->section[i - 1];
 		}
 	}
+}
+
+void free_sections(struct kp_file *f)
+{
+	struct section_desc **secs = NULL;
+	int i;
+
+	if (!f || !f->section) {
+		return;
+	}
+	secs = (struct section_desc **)f->section;
+	for (i = 1; i < f->nr_lines; ++i) {
+		if (secs[i] != secs[i - 1]) {
+			free(secs[i]->name);
+			free(secs[i]);
+		}
+	}
+	free(secs);
 }
 
 /* ----------------------------------------- code block boundaries detection ---------------------------------------- */

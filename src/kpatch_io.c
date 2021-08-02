@@ -12,6 +12,7 @@
 #include "include/kpatch_log.h"
 #include "include/kpatch_io.h"
 #include "include/kpatch_str.h"
+#include "include/kpatch_parse.h"
 
 void *kp_realloc(void *p, int oldsz, int newsz)
 {
@@ -108,4 +109,6 @@ void close_file(struct kp_file *file)
 	free(file->rpath);
 	free(file->dirname);
 	free(file->basename);
+	free_sections(file);
+	free(file->ctype);
 }
