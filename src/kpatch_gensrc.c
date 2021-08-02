@@ -174,8 +174,10 @@ void rename_add(struct kp_file *f, kpstr_t *src, kpstr_t *dst)
 	if (r == NULL) {
 		kpfatal("Failed to malloc rbtree!\n");
 	}
-	r->src = *src;
-	r->dst = *dst;
+	r->src.l = src->l;
+	r->src.s = strdup(src->s);
+	r->dst.l = dst->l;
+	r->dst.s = strdup(dst->s);
 	rb_insert_node(&f->renames, &r->rb, rename_cmp, (unsigned long)src);
 }
 
@@ -185,8 +187,18 @@ void rename_del(struct kp_file *f, kpstr_t *src)
 	r = rename_find(f, src);
 	if (r) {
 		rb_erase(&r->rb, &f->renames);
+		free(r->src.s);
+		free(r->dst.s);
 		free(r);
 	}
+}
+
+static void rename_free(struct rb_node *node)
+{
+	struct rename *r = rb_entry(node, struct rename, rb);
+	free(r->src.s);
+	free(r->dst.s);
+	free(r);
 }
 
 int strcmp_after_rename(struct kp_file *f0, struct kp_file *f1, char *s0, char *s1)
@@ -957,6 +969,7 @@ static void __name_add_kpatch_suffix(struct kp_file *f, kpstr_t *t, kpstr_t *bas
 	}
 	snprintf(tnew.s, tnew.l, "%.*s%s", basename->l, basename->s, suffix);
 	rename_add(f, t, &tnew);
+	free(tnew.s);
 	kplog(LOG_DEBUG, "RENAME[%d]: %.*s -> %.*s\n", f->id, t->l, t->s, tnew.l, tnew.s);
 }
 
@@ -1743,6 +1756,8 @@ int main(int argc, char **argv)
 	ret = 0;
 
 cleanup:
+	rb_destroy(&infile[0].renames, rename_free);
+	rb_destroy(&infile[1].renames, rename_free);
 	close_file(&infile[0]);
 	close_file(&infile[1]);
 	close_file(&outfile);
