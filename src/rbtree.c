@@ -155,8 +155,7 @@ __rb_insert(struct rb_node *node, struct rb_root *root)
 				WRITE_ONCE(parent->rb_right, tmp);
 				WRITE_ONCE(node->rb_left, parent);
 				if (tmp)
-					rb_set_parent_color(tmp, parent,
-							    RB_BLACK);
+					rb_set_parent_color(tmp, parent, RB_BLACK);
 				rb_set_parent_color(parent, node, RB_RED);
 				parent = node;
 				tmp = node->rb_right;
@@ -196,8 +195,7 @@ __rb_insert(struct rb_node *node, struct rb_root *root)
 				WRITE_ONCE(parent->rb_left, tmp);
 				WRITE_ONCE(node->rb_right, parent);
 				if (tmp)
-					rb_set_parent_color(tmp, parent,
-							    RB_BLACK);
+					rb_set_parent_color(tmp, parent, RB_BLACK);
 				rb_set_parent_color(parent, node, RB_RED);
 				parent = node;
 				tmp = node->rb_left;
@@ -247,8 +245,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 				WRITE_ONCE(parent->rb_right, tmp1);
 				WRITE_ONCE(sibling->rb_left, parent);
 				rb_set_parent_color(tmp1, parent, RB_BLACK);
-				__rb_rotate_set_parents(parent, sibling, root,
-							RB_RED);
+				__rb_rotate_set_parents(parent, sibling, root, RB_RED);
 				sibling = tmp1;
 			}
 			tmp1 = sibling->rb_right;
@@ -270,8 +267,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 					 * if it was red, or by recursing at p.
 					 * p is red when coming from Case 1.
 					 */
-					rb_set_parent_color(sibling, parent,
-							    RB_RED);
+					rb_set_parent_color(sibling, parent, RB_RED);
 					if (rb_is_red(parent))
 						rb_set_black(parent);
 					else {
@@ -314,8 +310,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 				WRITE_ONCE(tmp2->rb_right, sibling);
 				WRITE_ONCE(parent->rb_right, tmp2);
 				if (tmp1)
-					rb_set_parent_color(tmp1, sibling,
-							    RB_BLACK);
+					rb_set_parent_color(tmp1, sibling, RB_BLACK);
 				tmp1 = sibling;
 				sibling = tmp2;
 			}
@@ -337,8 +332,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 			rb_set_parent_color(tmp1, sibling, RB_BLACK);
 			if (tmp2)
 				rb_set_parent(tmp2, parent);
-			__rb_rotate_set_parents(parent, sibling, root,
-						RB_BLACK);
+			__rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
 			break;
 		} else {
 			sibling = parent->rb_left;
@@ -348,8 +342,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 				WRITE_ONCE(parent->rb_left, tmp1);
 				WRITE_ONCE(sibling->rb_right, parent);
 				rb_set_parent_color(tmp1, parent, RB_BLACK);
-				__rb_rotate_set_parents(parent, sibling, root,
-							RB_RED);
+				__rb_rotate_set_parents(parent, sibling, root, RB_RED);
 				sibling = tmp1;
 			}
 			tmp1 = sibling->rb_left;
@@ -357,8 +350,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 				tmp2 = sibling->rb_right;
 				if (!tmp2 || rb_is_black(tmp2)) {
 					/* Case 2 - sibling color flip */
-					rb_set_parent_color(sibling, parent,
-							    RB_RED);
+					rb_set_parent_color(sibling, parent, RB_RED);
 					if (rb_is_red(parent))
 						rb_set_black(parent);
 					else {
@@ -375,8 +367,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 				WRITE_ONCE(tmp2->rb_left, sibling);
 				WRITE_ONCE(parent->rb_left, tmp2);
 				if (tmp1)
-					rb_set_parent_color(tmp1, sibling,
-							    RB_BLACK);
+					rb_set_parent_color(tmp1, sibling, RB_BLACK);
 				tmp1 = sibling;
 				sibling = tmp2;
 			}
@@ -387,8 +378,7 @@ ____rb_erase_color(struct rb_node *parent, struct rb_root *root)
 			rb_set_parent_color(tmp1, sibling, RB_BLACK);
 			if (tmp2)
 				rb_set_parent(tmp2, parent);
-			__rb_rotate_set_parents(parent, sibling, root,
-						RB_BLACK);
+			__rb_rotate_set_parents(parent, sibling, root, RB_BLACK);
 			break;
 		}
 	}
@@ -427,7 +417,7 @@ void rb_erase(struct rb_node *node, struct rb_root *root)
  */
 struct rb_node *rb_first(const struct rb_root *root)
 {
-	struct rb_node	*n;
+	struct rb_node *n;
 
 	n = root->rb_node;
 	if (!n)
@@ -440,7 +430,7 @@ struct rb_node *rb_first(const struct rb_root *root)
 
 struct rb_node *rb_last(const struct rb_root *root)
 {
-	struct rb_node	*n;
+	struct rb_node *n;
 
 	n = root->rb_node;
 	if (!n)
