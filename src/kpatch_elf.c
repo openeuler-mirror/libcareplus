@@ -145,7 +145,7 @@ elf_object_look_for_buildid(struct object_file *o)
 			continue;
 
 		data += nhdr->n_namesz;
-		for (i = 0; i < 40; i+=2, data++)
+		for (i = 0; i < KPATCH_BUILDID_LEN; i+=2, data++)
 			sprintf(o->buildid + i, "%02hhx", *data);
 
 		kpdebug("read '%s'\n", o->buildid);

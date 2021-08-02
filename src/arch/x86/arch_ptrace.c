@@ -224,7 +224,8 @@ int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned long *addr)
 {
 	struct user_regs_struct regs;
-	unsigned long res, rsp;
+	unsigned long res = (unsigned long)-MAX_ERRNO;
+	unsigned long rsp;
 	int ret;
 
 	kpdebug("arch_prctl_remote: %d, %p\n", code, addr);
@@ -262,6 +263,7 @@ poke:
 				     regs.rsp,
 				     sizeof(rsp)))
 		kplogerror("can't poke orig stack data\n");
+
 	*addr = res;
 	return ret;
 }
