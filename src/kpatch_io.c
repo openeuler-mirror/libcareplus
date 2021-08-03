@@ -31,6 +31,15 @@ void *kp_realloc(void *p, int oldsz, int newsz)
 	return p2;
 }
 
+static char *kp_strdup(const char *s)
+{
+	char *new = strdup(s);
+	if (new == NULL) {
+		kpfatal("failed to allocate memory");
+	}
+	return new;
+}
+
 int read_file(struct kp_file *file, const char *fname)
 {
 	int sz = 64;
@@ -45,12 +54,12 @@ int read_file(struct kp_file *file, const char *fname)
 
 	file->rpath = realpath(fname, NULL);
 	if (!file->rpath)
-		file->rpath = strdup("");
-	tmp = strdup(file->rpath);
-	file->dirname = strdup(dirname(file->dirname));
+		file->rpath = kp_strdup("");
+	tmp = kp_strdup(file->rpath);
+	file->dirname = kp_strdup(dirname(tmp));
 	free(tmp);
-	tmp = strdup(file->rpath);
-	file->basename = strdup(basename(file->basename));
+	tmp = kp_strdup(file->rpath);
+	file->basename = kp_strdup(basename(tmp));
 	free(tmp);
 
 	if (!file->f)
@@ -67,7 +76,7 @@ int read_file(struct kp_file *file, const char *fname)
 			break;
 
 		trim_crlf(buf);
-		file->lines[file->nr_lines++] = strdup(buf);
+		file->lines[file->nr_lines++] = kp_strdup(buf);
 	}
 	file->lines[0] = "";	/* make line with index 0 to be empty, so that our line numbers would match and editor for easier debugging, i.e. we start from index=1 */
 	fclose(file->f);
