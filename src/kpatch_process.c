@@ -166,7 +166,6 @@ process_new_object(kpatch_process_t *proc,
 	o->ndynsyms = 0;
 	o->dynsymnames = NULL;
 	init_kp_file(&o->kpfile);
-	o->is_kpfile_dup = 0;
 
 	list_add(&o->list, &proc->objs);
 	proc->num_objs++;
@@ -350,7 +349,7 @@ object_destroy(struct object_file *o)
 	if (o->is_patch) {
 		free(o->info);
 	}
-	if (o->is_kpfile_dup && o->kpfile.patch) {
+	if (o->kpfile.patch) {
 		free(o->kpfile.patch);
 	}
 	free(o);

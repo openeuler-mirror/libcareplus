@@ -136,9 +136,6 @@ struct object_file {
 
 	/* Is it an unpatch target */
 	unsigned int is_unpatch_target_elf:1;
-
-	/* Is kpfile duplicated */
-	unsigned int is_kpfile_dup:1;
 };
 
 struct kpatch_process {
