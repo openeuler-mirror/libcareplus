@@ -425,6 +425,7 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 	struct object_file *o, *objpatch;
 	size_t found = 0;
 	size_t unpatch_target_elf_num = 0;
+	struct kpatch_file *patch = NULL;
 
 	list_for_each_entry(objpatch, &proc->objs, list) {
 
@@ -448,8 +449,16 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 							    struct obj_vm_area,
 							    list);
 				o->kpta = patchvma->inmem.start;
-				o->kpfile = objpatch->kpfile;
 				o->is_unpatch_target_elf = 1;
+
+				/* copy kpatch object kpfile information */
+				patch = malloc(sizeof(struct kpatch_file));
+				if (patch == NULL)
+					return -1;
+				memcpy(patch, objpatch->kpfile.patch, sizeof(struct kpatch_file));
+				o->kpfile.patch = patch;
+				o->kpfile.size = objpatch->kpfile.size;
+
 				unpatch_target_elf_num++;
 			}
 
