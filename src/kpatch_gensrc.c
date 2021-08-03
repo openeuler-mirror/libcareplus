@@ -969,8 +969,8 @@ static void __name_add_kpatch_suffix(struct kp_file *f, kpstr_t *t, kpstr_t *bas
 	}
 	snprintf(tnew.s, tnew.l, "%.*s%s", basename->l, basename->s, suffix);
 	rename_add(f, t, &tnew);
-	free(tnew.s);
 	kplog(LOG_DEBUG, "RENAME[%d]: %.*s -> %.*s\n", f->id, t->l, t->s, tnew.l, tnew.s);
+	free(tnew.s);
 }
 
 static void cblock_make_new_labels(struct cblock *b)
