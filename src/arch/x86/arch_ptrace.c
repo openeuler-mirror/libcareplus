@@ -126,6 +126,10 @@ kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 
 		snprintf(buf, sizeof(buf), "/proc/%d/mem", proc->pid);
 		proc->memfd = open(buf, O_RDWR);
+		if (proc->memfd < 0) {
+			kplogerror("Failed to open proc mem\n");
+			return -1;
+		}
 	}
 
 	kpdebug("...done\n");
