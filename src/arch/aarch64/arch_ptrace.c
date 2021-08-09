@@ -451,8 +451,13 @@ kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
 		 * Bail out.
 		 */
 		pctx = kpatch_ptrace_find_thread(proc, pid, 0);
-		if (pctx != NULL)
+		if (pctx != NULL) {
 			pctx->running = 0;
+			kperr("the thread ran out: %d, pc= %llx, expected = %lx\n",
+					pid, regs.pc, pctx->execute_until);
+		} else {
+			kperr("the thread ran out: %d, pc= %llx\n", pid, regs.pc);
+		}
 
 		/* TODO: fix the latter by SINGLESTEPping such a thread with
 		 * the original instruction in place */
