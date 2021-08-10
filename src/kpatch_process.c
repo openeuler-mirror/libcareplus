@@ -209,7 +209,8 @@ process_get_object_type(kpatch_process_t *proc,
 		struct kpatch_file *pkpfile = (struct kpatch_file *)buf;
 
 		if (!strcmp(pkpfile->magic, KPATCH_FILE_MAGIC1)) {
-			sprintf(name, "[kpatch-%s]", pkpfile->buildid);
+			snprintf(name, KPATCH_OBJECT_NAME_LEN,
+				 "[kpatch-%s]", pkpfile->buildid);
 			return type;
 		}
 	}
@@ -816,7 +817,8 @@ process_print_cmdline(kpatch_process_t *proc)
 	int fd;
 	ssize_t i, rv;
 
-	sprintf(buf, "/proc/%d/cmdline", proc->pid);
+	snprintf(buf, sizeof("/proc/0123456789/cmdline"),
+		 "/proc/%d/cmdline", proc->pid);
 	fd = open(buf, O_RDONLY);
 	if (fd == -1) {
 		kplogerror("open\n");
@@ -857,7 +859,8 @@ process_get_comm_ld_linux(kpatch_process_t *proc)
 	ssize_t i, rv;
 
 	kpdebug("process_get_comm_ld_linux");
-	sprintf(buf, "/proc/%d/cmdline", proc->pid);
+	snprintf(buf, sizeof("/proc/0123456789/cmdline"),
+		 "/proc/%d/cmdline", proc->pid);
 	fd = open(buf, O_RDONLY);
 	if (fd == -1) {
 		kplogerror("open\n");

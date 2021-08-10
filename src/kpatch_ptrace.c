@@ -177,7 +177,7 @@ int kpatch_ptrace_get_entry_point(struct kpatch_ptrace_ctx *pctx,
 
 	kpdebug("Looking for entry point...");
 
-	sprintf(path, "/proc/%d/auxv", pctx->pid);
+	snprintf(path, sizeof(path), "/proc/%d/auxv", pctx->pid);
 	fd = open(path, O_RDONLY);
 	if (fd == -1) {
 		kplogerror("can't open %s\n", path);
@@ -495,7 +495,7 @@ get_threadgroup_id(int tid)
 	char buf[256];
 	int pid = -1;
 
-	sprintf(buf, "/proc/%d/status", tid);
+	snprintf(buf, sizeof(buf), "/proc/%d/status", tid);
 
 	fh = fopen(buf, "r");
 	if (fh == NULL)
