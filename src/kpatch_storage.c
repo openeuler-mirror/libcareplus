@@ -108,7 +108,10 @@ int storage_init(kpatch_storage_t *storage,
 			kpatch_close_file(&storage->patch.kpfile);
 			goto out_close;
 		}
-		strcpy(storage->patch.buildid, storage->patch.kpfile.patch->buildid);
+		strncpy(storage->patch.buildid,
+			storage->patch.kpfile.patch->buildid,
+			KPATCH_BUILDID_LEN);
+		storage->patch.buildid[KPATCH_BUILDID_LEN] = '\0';
 	}
 
 	storage->path = strdup(fname);
