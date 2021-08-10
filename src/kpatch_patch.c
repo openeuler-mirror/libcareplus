@@ -773,7 +773,7 @@ out_free:
 	if (is_calc_time) {
 		gettimeofday(&end_tv, NULL);
 		frozen_time = GET_MICROSECONDS(end_tv, start_tv);
-		kpinfo("PID '%d' process unpatch frozen_time is %ld microsecond\n", pid, frozen_time);
+		kpinfo("PID '%d' process unpatch frozen_time is %lu microsecond\n", pid, frozen_time);
 	}
 
 out:

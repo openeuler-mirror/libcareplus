@@ -80,11 +80,15 @@ int storage_init(kpatch_storage_t *storage,
 	}
 
 	patch_fd = open(fname, O_RDONLY | O_CLOEXEC);
-	if (patch_fd < 0)
-		goto out_err;
+	if (patch_fd < 0) {
+		kperr("cannot open storage '%s'\n", fname);
+		return -1;
+	}
 
-	if (fstat(patch_fd, &stat) < 0)
-	        goto out_close;
+	if (fstat(patch_fd, &stat) < 0) {
+		kperr("FSTAT FAIL: %s\n", strerror(errno));
+		goto out_close;
+	}
 
 	storage->patch_fd = patch_fd;
 	storage->is_patch_dir = S_ISDIR(stat.st_mode);
@@ -113,8 +117,6 @@ int storage_init(kpatch_storage_t *storage,
 out_close:
 	close(patch_fd);
 
-out_err:
-	kplogerror("cannot open storage '%s'\n", fname);
 	return -1;
 }
 
