@@ -91,7 +91,7 @@ object_find_patch_region(struct object_file *obj,
 			left_hole = NULL;
 		else if (hole_size(left_hole) > memsize) {
 			region_start =
-				(left_hole->start - obj_end) <= max_distance ?
+				(obj_end - left_hole->start) <= max_distance ?
 				left_hole->start : obj_end > max_distance    ?
 				obj_end - max_distance : 0;
 			region_end = left_hole->end - memsize;
