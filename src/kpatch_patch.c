@@ -322,8 +322,8 @@ duplicate_kp_file(struct object_file *o)
 	return 0;
 }
 
-extern int PATCH_APPLIED;
-extern int HUNK_SIZE;
+extern unsigned int PATCH_APPLIED;
+extern unsigned int HUNK_SIZE;
 
 static int
 object_apply_patch(struct object_file *o)
