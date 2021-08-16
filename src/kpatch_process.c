@@ -651,7 +651,7 @@ process_list_threads(kpatch_process_t *proc,
 		     size_t *npids,
 		     size_t *alloc)
 {
-	DIR *dir;
+	DIR *dir = NULL;
 	struct dirent *de;
 	char path[128];
 	int *pids = *ppids;
@@ -660,7 +660,7 @@ process_list_threads(kpatch_process_t *proc,
 	dir = opendir(path);
 	if (!dir) {
 		kplogerror("can't open '%s' directory\n", path);
-		return -1;
+		goto dealloc;
 	}
 
 	*npids = 0;
@@ -692,6 +692,8 @@ process_list_threads(kpatch_process_t *proc,
 	return *npids;
 
 dealloc:
+	if (dir)
+		closedir(dir);
 	free(pids);
 	*ppids = NULL;
 	*alloc = *npids = 0;

@@ -332,11 +332,12 @@ static int is_global_rip_reference(kpstr_t *t)
 
 #define	MOV_PREFIX	"mov"
 #define	MOV_LENGTH	(sizeof(MOV_PREFIX) - 1)
+#define	MAX_FLAVOR_SIZE	16
 
 void str_do_gotpcrel(struct kp_file *f, char *dst, char *src)
 {
 	kpstr_t mov, movsrc, movdst, tmptok;
-	char flavor[16], *s = src, *d = dst;
+	char flavor[MAX_FLAVOR_SIZE], *s = src, *d = dst;
 
 	*d = 0;
 
@@ -348,6 +349,10 @@ void str_do_gotpcrel(struct kp_file *f, char *dst, char *src)
 
 	/* Command has no %rip reference */
 	if (strstr(s, "%rip") == NULL)
+		goto out;
+
+	if (mov.l < MOV_LENGTH ||
+	    mov.l - MOV_LENGTH >= MAX_FLAVOR_SIZE)
 		goto out;
 
 	strncpy(flavor, mov.s + MOV_LENGTH, mov.l - MOV_LENGTH);
