@@ -55,6 +55,12 @@ patch_file_verify(struct kp_file *kpfile)
 		return -1;
 	}
 
+	if (k->kpatch_offset + sizeof(GElf_Ehdr) > size) {
+		kperr("'%s' patch is invalid: Invalid kpatch offset: %u\n",
+		      k->modulename, k->kpatch_offset);
+		return -1;
+	}
+
 	hdr = (void *)k + k->kpatch_offset;
 	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) ||
 	    hdr->e_type != ET_REL ||
