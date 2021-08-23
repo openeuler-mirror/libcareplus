@@ -272,8 +272,10 @@ patch_ensure_safety(struct object_file *o,
 	list_for_each_entry(p, &o->proc->ptrace.pctxs, list)
 		nr++;
 	retips = malloc(nr * sizeof(unsigned long));
-	if (retips == NULL)
+	if (retips == NULL) {
+		kperr("Failed to malloc retips");
 		return -1;
+	}
 
 	memset(retips, 0, nr * sizeof(unsigned long));
 
@@ -393,16 +395,20 @@ object_apply_patch(struct object_file *o)
 				       kp,
 				       o->kpta,
 				       kp->total_size);
-	if (ret < 0)
+	if (ret < 0) {
+		kperr("Failed to write kpatch");
 		return ret;
+	}
 
 	if (o->jmp_table) {
 		ret = kpatch_process_mem_write(o->proc,
 					       o->jmp_table,
 					       o->kpta + kp->jmp_offset,
 					       o->jmp_table->size);
-		if (ret < 0)
+		if (ret < 0) {
+			kperr("Failed to write jmp table");
 			return ret;
+		}
 	}
 
 	ret = patch_ensure_safety(o, ACTION_APPLY_PATCH);
@@ -584,26 +590,32 @@ object_find_applied_patch_info(struct object_file *o)
 	if (o->info != NULL)
 		return 0;
 
-	if (o->kpfile.patch)
+	if (o->kpfile.patch) {
 		patch_id = o->kpfile.patch->id;
-	else
+	} else {
+		kperr("Object(%s) kpatch file is NULL", o->name);
 		return -1;
+	}
 
 	applied_patch = kpatch_object_get_applied_patch_by_id(o, patch_id);
 	if (!applied_patch) {
-		fprintf(stderr, "Failed to find target applied patch!\n");
+		kperr("Failed to find target applied patch!");
 		return -1;
 	}
 
 	iter = kpatch_process_mem_iter_init(o->proc);
-	if (iter == NULL)
+	if (iter == NULL) {
+		kperr("Failed to initialize iterator");
 		return -1;
+	}
 
 	remote_info = (void *)o->kpta + o->kpfile.patch->user_info;
 	do {
 		ret = REMOTE_PEEK(iter, tmpinfo, remote_info);
-		if (ret < 0)
+		if (ret < 0) {
+			kperr("Failed to get remote kpatch info");
 			goto err;
+		}
 
 		if (is_end_info(&tmpinfo))
 		    break;
@@ -612,6 +624,7 @@ object_find_applied_patch_info(struct object_file *o)
 			nalloc += 16;
 			if (object_kpatch_info_realloc(o, nalloc) < 0) {
 				ret = -1;
+				kperr("Failed to expand kpatch info mem");
 				goto err;
 			}
 		}
@@ -674,8 +687,10 @@ object_unapply_patch(struct object_file *o, int check_flag)
 				   o->kpta,
 				   o->kpfile.size);
 
-	if (ret < 0)
+	if (ret < 0) {
+		kperr("Failed to unmap remote kpatch mem");
 		return ret;
+	}
 
 	return 1;
 }

@@ -59,6 +59,9 @@ int patch_apply_hunk(struct object_file *o, size_t nhunk)
 				       code,
 				       info->daddr,
 				       sizeof(code));
+	if (ret < 0) {
+		kperr("Failed to write remote info");
+	}
 	/*
 	 * NOTE(pboldin): This is only stored locally, as information have
 	 * been copied to patient's memory already.

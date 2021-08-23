@@ -907,6 +907,6 @@ int kpatch_elf_load_kpatch_info(struct object_file *o)
 		}
 	}
 
-	kpdebug("failed\n");
+	kperr("Failed to load kpatch info for %s", o->name);
 	return -1;
 }

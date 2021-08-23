@@ -493,14 +493,14 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 	 */
 	fd = dup(proc->fdmaps);
 	if (fd < 0) {
-		kperr("unable to dup fd %d\n", proc->fdmaps);
+		kperr("unable to dup fd %d", proc->fdmaps);
 		return -1;
 	}
 
 	lseek(fd, 0, SEEK_SET);
 	f = fdopen(fd, "r");
 	if (f == NULL) {
-		kperr("unable to fdopen %d\n", fd);
+		kperr("unable to fdopen %d", fd);
 		close(fd);
 		return -1;
 	}
@@ -518,8 +518,10 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 		r = sscanf(line, "%lx-%lx %s %lx %x:%x %d %255s",
 			   &start, &end, perms, &offset,
 			   &maj, &min, &inode, name_);
-		if (r == EOF)
+		if (r == EOF) {
+			kperr("sscanf failed: end of file");
 			goto error;
+		}
 		if (r != 8)
 			strcpy(name, "[anonymous]");
 
@@ -534,8 +536,10 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 			hole = process_add_vm_hole(proc,
 						   hole_start + PAGE_SIZE,
 						   start - PAGE_SIZE);
-			if (hole == NULL)
+			if (hole == NULL) {
+				kperr("Failed to add vma hole");
 				goto error;
+			}
 		}
 		hole_start = end;
 
@@ -543,8 +547,10 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 
 		ret = process_add_object_vma(proc, makedev(maj, min),
 					     inode, name, &vma, hole);
-		if (ret < 0)
+		if (ret < 0) {
+			kperr("Failed to add object vma");
 			goto error;
+		}
 
 		if (!is_libc_base_set &&
 		    !strncmp(basename(name), "libc", 4) &&
@@ -557,12 +563,12 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 	fclose(f);
 
 	if (!is_libc_base_set) {
-		kperr("Can't find libc_base required for manipulations: %d\n",
+		kperr("Can't find libc_base required for manipulations: %d",
 		      proc->pid);
 		return -1;
 	}
 
-	kpinfo("Found %d object file(s).\n", proc->num_objs);
+	kpinfo("Found %d object file(s)", proc->num_objs);
 
 	return 0;
 
@@ -589,7 +595,7 @@ kpatch_process_map_object_files(kpatch_process_t *proc, const char *patch_id)
 
 	ret = kpatch_process_associate_patches(proc, patch_id);
 	if (ret >= 0) {
-		kpinfo("Found %d applied patch(es).\n", ret);
+		kpinfo("Found %d applied patch(es)", ret);
 	}
 
 	return ret;
@@ -1034,8 +1040,10 @@ vm_hole_split(struct vm_hole *hole,
 		struct vm_hole *left = NULL;
 
 		left = malloc(sizeof(*hole));
-		if (left == NULL)
+		if (left == NULL) {
+			kperr("Failed to malloc for vm hole");
 			return -1;
+		}
 
 		left->start = hole->start;
 		left->end = alloc_start;
