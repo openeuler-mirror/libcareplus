@@ -91,6 +91,13 @@ kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 		   int flags,
 		   int fd,
 		   off_t offset);
+
+int
+kpatch_mprotect_remote(struct kpatch_ptrace_ctx *pctx,
+		       unsigned long addr,
+		       size_t length,
+		       int prot);
+
 int
 kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
 		     unsigned long addr,

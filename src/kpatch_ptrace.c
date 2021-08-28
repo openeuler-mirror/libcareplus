@@ -539,6 +539,28 @@ kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 	return res;
 }
 
+int
+kpatch_mprotect_remote(struct kpatch_ptrace_ctx *pctx,
+		       unsigned long addr,
+		       size_t length,
+		       int prot)
+{
+	int ret;
+	unsigned long res;
+
+	kpdebug("mprotect_remote: 0x%lx+%lx\n", addr, length);
+	ret = kpatch_arch_syscall_remote(pctx, __NR_mprotect, (unsigned long)addr,
+					 length, prot, 0, 0, 0, &res);
+	if (ret < 0)
+		return -1;
+	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {
+		errno = -(long)res;
+		return -1;
+	}
+
+	return 0;
+}
+
 int kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
 			 unsigned long addr,
 			 size_t length)
