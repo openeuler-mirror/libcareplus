@@ -434,7 +434,9 @@ out:
 
 static void change_section(struct kp_file *fout, struct section_desc *sect, int flags)
 {
+	static int init_data_section = 0;
 	char *s;
+	char *align = NULL;
 
 	if (sect == NULL) {
 		kpfatal("Section description is NULL!\n");
@@ -444,10 +446,17 @@ static void change_section(struct kp_file *fout, struct section_desc *sect, int 
 		s = sect->outname;
 	else if (sect->type & SECTION_EXECUTABLE)
 		s = ".kpatch.text,\"ax\",@progbits";
-	else
+	else {
 		s = ".kpatch.data,\"aw\",@progbits";
+		if (!init_data_section && !(flags & FLAG_PUSH_SECTION)) {
+			init_data_section = 1;
+			align = ".p2align\t12";
+		}
+	}
 
 	fprintf(fout->f, "\t.%ssection %s\n", (flags & FLAG_PUSH_SECTION) ? "push" : "", s);
+	if (align)
+		fprintf(fout->f, "\t%s\n", align);
 }
 
 void get_comm_args(struct kp_file *f, int l, kpstr_t *xname, int *sz, int *align)
