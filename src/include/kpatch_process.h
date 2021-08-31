@@ -113,6 +113,8 @@ struct object_file {
 
 	/* .kpatch.data sh_offset */
 	Elf64_Off data_offset;
+	/* .kpatch.info sh_offset */
+	Elf64_Off info_offset;
 
 	/* Dynamic symbols exported by the object if it is a library */
 	Elf64_Sym *dynsyms;

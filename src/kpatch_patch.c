@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/fcntl.h>
+#include <sys/mman.h>
 
 #include <gelf.h>
 #include <libunwind.h>
@@ -359,8 +360,9 @@ object_apply_patch(struct object_file *o)
 	kpatch_get_kpatch_data_offset(o);
 
 	kp = o->kpfile.patch;
-
-	sz = ROUND_UP(kp->total_size, 8);
+	/* kpatch header */
+	sz = ROUND_UP(sizeof(struct kpatch_file), 8);
+	/* jmp table */
 	undef = kpatch_count_undefined(o);
 	if (undef) {
 		o->jmp_table = kpatch_new_jmp_table(undef);
@@ -368,13 +370,19 @@ object_apply_patch(struct object_file *o)
 			return -1;
 		}
 		kp->jmp_offset = sz;
-		kpinfo("Jump table %d bytes for %d syms at offset 0x%x\n",
-		       o->jmp_table->size, undef, kp->jmp_offset);
-		sz = ROUND_UP(sz + o->jmp_table->size, 128);
+		kpdebug("Jump table %d bytes for %d syms at offset 0x%x\n",
+			o->jmp_table->size, undef, kp->jmp_offset);
+		sz = ROUND_UP(sz + o->jmp_table->size, 4096);
 	}
+	sz = ROUND_UP(sz, 4096);
 
-	kp->user_info = (unsigned long)o->info -
-			(unsigned long)o->kpfile.patch;
+	/* kpatch elf */
+	kp->elf_offset = sz;
+	sz = ROUND_UP(sz + kp->total_size - sizeof(struct kpatch_file), 128);
+	/* Calculate the .kpatch.info offset in remote kapatch memory region
+	 * and save it to kp->user_info */
+	kp->user_info = (unsigned long)o->info_offset + (unsigned long)kp->elf_offset;
+	/* user undo */
 	kp->user_undo = sz;
 	sz = ROUND_UP(sz + HUNK_SIZE * o->ninfo, 16);
 
@@ -393,16 +401,34 @@ object_apply_patch(struct object_file *o)
 	ret = kpatch_relocate(o);
 	if (ret < 0)
 		return ret;
+
+	/* Then, write kpatch elf to patient's memory */
+	kpdebug("kpatch elf: 0x%lx + 0x%lx", o->kpta + kp->elf_offset,
+		kp->total_size - sizeof(struct kpatch_file));
+	ret = kpatch_process_mem_write(o->proc,
+				       (void *)kp + kp->kpatch_offset,
+				       o->kpta + kp->elf_offset,
+				       kp->total_size - sizeof(struct kpatch_file));
+	if (ret < 0) {
+		kperr("Failed to write kpatch elf");
+		return ret;
+	}
+
+	/* Finally, write kpatch header to patient's memory */
+	kpdebug("kpatch header: 0x%lx + 0x%lx",
+			o->kpta, sizeof(struct kpatch_file));
 	ret = kpatch_process_mem_write(o->proc,
 				       kp,
 				       o->kpta,
-				       kp->total_size);
+				       sizeof(struct kpatch_file));
 	if (ret < 0) {
-		kperr("Failed to write kpatch");
+		kperr("Failed to write kpatch header");
 		return ret;
 	}
 
 	if (o->jmp_table) {
+		kpdebug("jmp table: 0x%lx + 0x%x",
+			o->kpta + kp->jmp_offset, o->jmp_table->size);
 		ret = kpatch_process_mem_write(o->proc,
 					       o->jmp_table,
 					       o->kpta + kp->jmp_offset,

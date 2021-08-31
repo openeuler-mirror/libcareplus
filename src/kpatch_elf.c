@@ -824,7 +824,7 @@ int kpatch_resolve(struct object_file *o)
 			 * proper offet in *target process* region of memory
 			 */
 			s->sh_addr = (unsigned long)o->kpta +
-				o->kpfile.patch->kpatch_offset + s->sh_offset;
+				o->kpfile.patch->elf_offset + s->sh_offset;
 		} else {
 			/*
 			 * We copy the `sh_addr`esses from the original binary
@@ -899,6 +899,7 @@ int kpatch_elf_load_kpatch_info(struct object_file *o)
 		GElf_Shdr *s = shdr + i;
 
 		if (!strcmp(secname(ehdr, s), ".kpatch.info")) {
+			o->info_offset = s->sh_offset;
 			o->info = (struct kpatch_info *)((void *)ehdr +
 							 s->sh_offset);
 			o->ninfo = s->sh_size / sizeof(struct kpatch_info);
