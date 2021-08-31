@@ -1100,7 +1100,7 @@ kpatch_object_allocate_patch(struct object_file *o,
 
 	addr = kpatch_mmap_remote(proc2pctx(o->proc),
 				  addr, sz,
-				  PROT_READ | PROT_WRITE | PROT_EXEC,
+				  PROT_READ | PROT_WRITE,
 				  MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (addr == 0) {
 		kplogerror("remote alloc memory for patch failed\n");

@@ -450,6 +450,16 @@ object_apply_patch(struct object_file *o)
 			return ret;
 	}
 
+	/* change .kpatch.text and jmp table mem to readable and executable */
+	ret = kpatch_mprotect_remote(proc2pctx(o->proc), o->kpta,
+	      o->data_offset ? kp->elf_offset + o->data_offset : kp->kpatch_total_mem_sz,
+	      PROT_READ | PROT_EXEC);
+	if (ret < 0) {
+		kperr("Failed to change kpatch access protection");
+		return ret;
+	}
+	kpinfo("r-xp: 0x%lx + 0x%lx", o->kpta, kp->elf_offset + o->data_offset);
+
 	return 1;
 }
 
