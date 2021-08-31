@@ -194,8 +194,8 @@ process_get_object_type(kpatch_process_t *proc,
 		return -1;
 	}
 
-	if (!strcmp(name, "[anonymous]") &&
-	    vma->prot == (PROT_READ | PROT_WRITE | PROT_EXEC) &&
+	if (vma->prot == (PROT_READ | PROT_EXEC) &&
+	    !strncmp(name, "[anonymous]", strlen("[anonymous]")) &&
 	    (vma->end - vma->start) >= sizeof(struct kpatch_file))
 		type = OBJECT_KPATCH;
 
