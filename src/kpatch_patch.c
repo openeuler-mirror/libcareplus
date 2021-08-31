@@ -356,6 +356,8 @@ object_apply_patch(struct object_file *o)
 	if (ret < 0)
 		return ret;
 
+	kpatch_get_kpatch_data_offset(o);
+
 	kp = o->kpfile.patch;
 
 	sz = ROUND_UP(kp->total_size, 8);

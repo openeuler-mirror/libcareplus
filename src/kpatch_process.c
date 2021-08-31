@@ -160,6 +160,7 @@ process_new_object(kpatch_process_t *proc,
 	o->load_offset = ~(unsigned long)0;
 	memset(&o->ehdr, 0, sizeof(o->ehdr));
 	o->phdr = NULL;
+	o->data_offset = 0;
 	o->is_elf = 0;
 	o->is_unpatch_target_elf = 0;
 	o->dynsyms = NULL;

@@ -910,3 +910,29 @@ int kpatch_elf_load_kpatch_info(struct object_file *o)
 	kperr("Failed to load kpatch info for %s", o->name);
 	return -1;
 }
+
+void
+kpatch_get_kpatch_data_offset(struct object_file *o)
+{
+	GElf_Ehdr *ehdr;
+	GElf_Shdr *shdr;
+	int i;
+
+	ehdr = (void *)o->kpfile.patch + o->kpfile.patch->kpatch_offset;
+	shdr = (void *)ehdr + ehdr->e_shoff;
+
+	kpdebug("Geting patch .kpatch.data offset '%s'...", o->name);
+	for (i = 1; i < ehdr->e_shnum; i++) {
+		GElf_Shdr *s = shdr + i;
+
+		if (!strcmp(secname(ehdr, s), ".kpatch.data")) {
+			o->data_offset = s->sh_offset;
+			kpdebug(".kpatch.data sh_offset: 0x%lx", s->sh_offset);
+			return;
+		}
+	}
+
+	kpdebug("%s object doesn't have the .kpatch.data section", o->name);
+	return;
+}
+

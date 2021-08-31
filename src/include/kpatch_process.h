@@ -111,6 +111,9 @@ struct object_file {
 	/* Program header */
 	Elf64_Phdr *phdr;
 
+	/* .kpatch.data sh_offset */
+	Elf64_Off data_offset;
+
 	/* Dynamic symbols exported by the object if it is a library */
 	Elf64_Sym *dynsyms;
 	size_t ndynsyms;

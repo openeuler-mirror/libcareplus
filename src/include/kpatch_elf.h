@@ -18,6 +18,7 @@ kpatch_elf_object_set_ehdr(struct object_file *o,
 int kpatch_elf_object_is_shared_lib(struct object_file *o);
 int kpatch_elf_parse_program_header(struct object_file *o);
 int kpatch_elf_load_kpatch_info(struct object_file *o);
+void kpatch_get_kpatch_data_offset(struct object_file *o);
 
 int kpatch_resolve(struct object_file *o);
 int kpatch_relocate(struct object_file *o);
