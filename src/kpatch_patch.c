@@ -387,6 +387,7 @@ object_apply_patch(struct object_file *o)
 	sz = ROUND_UP(sz + HUNK_SIZE * o->ninfo, 16);
 
 	sz = ROUND_UP(sz, 4096);
+	kp->kpatch_total_mem_sz = sz;
 
 	/*
 	 * Map patch as close to the original code as possible.
@@ -713,7 +714,7 @@ object_unapply_patch(struct object_file *o, int check_flag)
 	kpinfo("munmap kpatch memory from 0x%lx\n", o->kpta);
 	ret = kpatch_munmap_remote(proc2pctx(o->proc),
 				   o->kpta,
-				   o->kpfile.size);
+				   o->kpfile.patch->kpatch_total_mem_sz);
 
 	if (ret < 0) {
 		kperr("Failed to unmap remote kpatch mem");

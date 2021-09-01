@@ -119,6 +119,14 @@ struct kpatch_payload {
 	char *description; // could be NULL
 };
 
+/*
+ * When modifying the struct kpatch_file structure, you need to pay attention to
+ * two points:
+ * 1. make sure that the struct kpatch_file structure does not exceed
+ *    1024 bytes;
+ * 2. add pad to ensure that the start address of the ELF executable
+ *    part is aligned to 8 bytes;
+ */
 struct kpatch_file {
 	char magic[8];			/* magic string */
 	char id[8];			/* unique patch id */
@@ -139,6 +147,7 @@ struct kpatch_file {
 	kpatch_offset_t jmp_offset;	/* jump table offset for user-space patches */
 	kpatch_offset_t elf_offset;	/* elf content offset in patient's mem */
 	char pad2[4];
+	uint64_t kpatch_total_mem_sz;	/* malloc total mem size for kpatch in patient's mem */
 
 	/* array of entry offsets in the patch content */
 	union {
