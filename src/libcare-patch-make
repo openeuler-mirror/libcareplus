@@ -7,6 +7,7 @@ Makes `kpatch'es for the makesystem in the current directory.
 Usage:	libcare-patch-make [-h|--help] [-u|--update || -c|--clean]
 	[-s|--srcdir=SRCDIR] \
 	[-d|--destdir=DESTDIRVAR] \
+	[-j|--jobs=<number of jobs>] \
 	PATCH1 PATCH2 ...
 
 Run from inside the directory with `make'ble software. Makesystem must support
@@ -17,6 +18,8 @@ install with specified DESTDIR.
 		working on patch utils.
   -d --destdir	specify variable makefile system uses to specify destination
 		directory for the installation
+  -j --jobs 	specify variable makefile system jobs of compile, for example
+  		`make -j 4` is startup `4` jobs to compile.
 EOF
 		exit ${1-0}
 }
@@ -72,6 +75,9 @@ trap "restore_origs" 0
 build_objects() {
 	restore_origs
 
+	JOBS_MAKE=""
+	test $jobs_make && JOBS_MAKE="-j $jobs_make"
+
 	if test -n "$do_clean"; then
 		make $LPMAKEFILE clean >$MAKE_OUTPUT 2>&1
 		rm -rf "$LPMAKE_ORIGINAL_DIR" "$LPMAKE_PATCHED_DIR"
@@ -81,7 +87,7 @@ build_objects() {
 	export KPCC_DBGFILTER_ARGS=""
 
 	echo "${green}BUILDING ORIGINAL CODE${reset}"
-	make $LPMAKEFILE >$MAKE_OUTPUT 2>&1
+	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
 
 	echo "${green}INSTALLING ORIGINAL OBJECTS INTO $LPMAKE_ORIGINAL_DIR${reset}"
 	make $LPMAKEFILE install				\
@@ -107,7 +113,7 @@ build_objects() {
 	export KPCC_APPEND_ARGS="-Wl,-q"
 
 	echo "${green}BUILDING PATCHED CODE${reset}"
-	make $LPMAKEFILE >$MAKE_OUTPUT 2>&1
+	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
 
 	echo "${green}INSTALLING PATCHED OBJECTS INTO $LPMAKE_PATCHED_DIR${reset}"
 	make $LPMAKEFILE install				\
@@ -149,7 +155,7 @@ build_kpatches() {
 main() {
 	PROG_NAME=$(basename $0)
 
-	TEMP=$(getopt -o s:ucd --long srcdir:,update,clean,destdir: -n ${PROG_NAME} -- "$@" || usage 1)
+	TEMP=$(getopt -o s:ucd:j: --long srcdir:,update,clean,destdir:,jobs: -n ${PROG_NAME} -- "$@" || usage 1)
 	eval set -- "$TEMP"
 
 	destdir="DESTDIR"
@@ -171,6 +177,11 @@ main() {
 		-d|--destdir)
 			shift
 			destdir=$1
+			shift
+			;;
+		-j|--jobs)
+			shift
+			jobs_make=$1
 			shift
 			;;
 		--)
