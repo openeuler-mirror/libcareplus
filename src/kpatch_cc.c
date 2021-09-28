@@ -394,7 +394,7 @@ static void init(int argc_, const char **argv_)
 			argv[i] = NULL;
 			continue;
 		case 'M':
-			if (arg[2] == 'F' || arg[2] == 'T')
+			if (arg[2] == 'F' || arg[2] == 'T' || arg[2] == 'Q')
 				i++;
 			continue;
 		case 'i':
