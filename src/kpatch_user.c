@@ -869,7 +869,7 @@ processes_do(int pid, callback_t callback, void *data)
 	DIR *dir;
 	struct dirent *de;
 	int ret = 0, rv;
-	char *tmp, buf[64];
+	char *tmp, buf[64], buf2[64];
 
 	if (pid != -1)
 		return callback(pid, data);
@@ -892,7 +892,7 @@ processes_do(int pid, callback_t callback, void *data)
 			continue;
 
 		snprintf(buf, sizeof(buf), "/proc/%d/exe", pid);
-		rv = readlink(buf, buf, sizeof(buf));
+		rv = readlink(buf, buf2, sizeof(buf2));
 		if (rv == -1) {
 			if (errno == ENOENT)
 				kpdebug("skipping kernel thread %d\n", pid);
