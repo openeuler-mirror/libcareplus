@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - kpatch_gensrc.c: support ignoring functions which we don't need
+ * Huawei Technologies Co., Ltd. <lijiajie11@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -38,9 +43,57 @@ static int nr_must_adapt_syms;
 static int force_gotpcrel;
 static int force_global;
 
-static inline int in_syms_list(char *filename, kpstr_t *sym, const struct sym_desc *sym_arr, int nr_syms)
+static char* patch_func_file_name = "/etc/libcare/patch_func_names.conf";
+
+static int is_func_in_patch_func_file(FILE *fp, kpstr_t *sym)
 {
-	int i, len;
+	char buffer[1024];
+
+	/* 1024 should be enough for func_cblock name */
+	if (sym->l <= 0 || sym->l > sizeof(buffer))
+		return 0;
+
+	rewind(fp);
+	while (!feof(fp)) {
+		memset(buffer, 0, sizeof(buffer));
+		fgets(buffer, sizeof(buffer), fp);
+		if (strncmp(buffer, sym->s, sym->l) == 0) {
+			return 1;
+		}
+	}
+	return 0;
+}
+
+static inline int in_syms_list(char *filename, kpstr_t *sym, const struct sym_desc *sym_arr, int nr_syms, int cblock_type)
+{
+	int i, len, rv;
+
+	/*
+	 * Since we need to ignore some unwanted function being patched,
+	 * so we will first check if there is a file called "patch_func_name".
+	 * If there isn't, we will continue as usual.
+	 * If there is, we will ignore those function which is not in the file.
+	 */
+	if (cblock_type == CBLOCK_FUNC && sym_arr == ignore_syms) {
+		FILE *fp = fopen(patch_func_file_name, "r");
+		if (fp == NULL) {
+			goto no_conf;
+		}
+
+		rv = is_func_in_patch_func_file(fp, sym);
+
+		if (fclose(fp) != 0) {
+			kpfatal("Error in closing file %s\n", patch_func_file_name);
+		}
+
+		/*
+		 * If rv is 1, which means symbol is in patch_func_file,
+		 * which means we cann't ignore it. So return 0, otherwise return 1.
+		 */
+		return rv == 1 ? 0 : 1;
+	}
+
+no_conf:
 	for (i = 0; i < nr_syms; i++) {
 		if (sym_arr[i].filename) {
 			len = strlen(sym_arr[i].filename);
@@ -811,7 +864,7 @@ static void cblock_var_check_content(struct cblock *b0)
 	cblock_print2(b0, b1);
 	kplog(LOG_DEBUG, "-------------------------------------------\n");
 
-	if (in_syms_list(b1->f->basename, &b0->human_name, ignore_syms, nr_ignore_syms))
+	if (in_syms_list(b1->f->basename, &b0->human_name, ignore_syms, nr_ignore_syms, b0->type))
 		return;
 
 	if (cblock_cmp(b0, b1, CBLOCK_CMP_SECT|CBLOCK_CMP_RENAME))
@@ -1114,12 +1167,12 @@ static void analyze_func_cblocks(struct kp_file *f0, struct kp_file *f1)
 		if (b1->type != CBLOCK_FUNC || !b1->pair)
 			continue;
 
-		if (in_syms_list(b1->f->basename, &b1->human_name, ignore_syms, nr_ignore_syms)) {
+		if (in_syms_list(b1->f->basename, &b1->human_name, ignore_syms, nr_ignore_syms, b1->type)) {
 			rename_del(b1->f, &b1->name);
 			rename_del(b1->pair->f, &b1->pair->name);
 			b1->ignore = 1;
 		}
-		if (in_syms_list(b1->f->basename, &b1->human_name, unlink_syms, nr_unlink_syms)) {
+		if (in_syms_list(b1->f->basename, &b1->human_name, unlink_syms, nr_unlink_syms, b1->type)) {
 			kplog(LOG_DEBUG, "unlinking %.*s\n", b1->name.l, b1->name.s);
 			b1->unlink = 1;
 		}
@@ -1141,7 +1194,7 @@ static void analyze_func_cblocks(struct kp_file *f0, struct kp_file *f1)
 			rename_add(b1->f, &b1->name, &b0->name);
 			b1->ignore = 1;
 		} else {
-			if (!b1->adapted && in_syms_list(b1->f->basename, &b1->human_name, must_adapt_syms, nr_must_adapt_syms)) {
+			if (!b1->adapted && in_syms_list(b1->f->basename, &b1->human_name, must_adapt_syms, nr_must_adapt_syms, b1->type)) {
 				not_adapted= 1;
 				kplog(LOG_ERR, "FATAL! not adapted function change %.*s\n", b1->name.l, b1->name.s);
 			}
