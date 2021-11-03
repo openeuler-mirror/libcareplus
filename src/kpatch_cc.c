@@ -394,13 +394,15 @@ static void init(int argc_, const char **argv_)
 			argv[i] = NULL;
 			continue;
 		case 'M':
-			if (arg[2] == 'F' || arg[2] == 'T')
+			if (arg[2] == 'F' || arg[2] == 'T' || arg[2] == 'Q')
 				i++;
 			continue;
 		case 'i':
 			if (strcmp(arg + 2, "nclude") == 0)
 				i++;
 			if (strcmp(arg + 2, "system") == 0)
+				i++;
+			if (strcmp(arg + 2, "quote") == 0)
 				i++;
 			continue;
 		case 'e':
