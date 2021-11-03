@@ -20,7 +20,7 @@ CFLAGS_WARN += $(call cc-option,-Wno-builtin-macro-redefined)
 CFLAGS_WARN += $(call cc-option,-Wno-deprecated-declarations)
 CFLAGS = $(CFLAGS_MISC) $(CFLAGS_WARN)
 
-ARCH := $(shell cat arch.desc)
+ARCH := $(shell sh config; cat arch.desc)
 ifeq ($(ARCH),aarch64)
 VPATH = arch/aarch64
 else
