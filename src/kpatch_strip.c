@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - tls: add support for tls symbol
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com> - 0.1.4-15
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -14,6 +19,7 @@
 #include "include/kpatch_elf_objinfo.h"
 
 #include "include/kpatch_log.h"
+#include "include/kpatch_strip.h"
 
 #define ALIGN(off,sz) (((off)+(sz)-1)&~((sz)-1))
 
@@ -211,7 +217,7 @@ kpatch_get_symbol_offset_rel_section(kpatch_objinfo *oi,
 	return 0;
 }
 
-static int
+int
 kpatch_get_original_symbol_loc(kpatch_objinfo *origbin,
 			       const char *symname,
 			       size_t *symoff,
@@ -499,7 +505,8 @@ kpatch_fixup_rela_one(kpatch_objinfo *origbin,
 	}
 
 	if (GELF_ST_TYPE(sym->st_info) == STT_TLS) {
-		rv = kpatch_fixup_rela_update_tls(origbin, patch, rel, sym);
+		rv = kpatch_arch_fixup_rela_update_tls(origbin, patch, rel,
+							sym, sh_text, text);
 		if (rv < 0)
 			kpfatalerror("kpatch_fixup_rela_update_tls");
 

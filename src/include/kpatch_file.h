@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: introduce patch-id
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ ******************************************************************************/
+
 #ifndef __KPATCH_FILE_H__
 #define __KPATCH_FILE_H__
 
@@ -113,6 +118,7 @@ struct kpatch_payload {
 
 struct kpatch_file {
 	char magic[8];			/* magic string */
+	char id[8];			/* unique patch id */
 	unsigned char flags;
 	unsigned char safety_method;
 	char pad[6];

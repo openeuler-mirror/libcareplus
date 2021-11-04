@@ -1,3 +1,11 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: introduce patch-id
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ *
+ * 2021.09.23 - libcare-ctl: implement applied patch list
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -300,15 +308,15 @@ object_apply_patch(struct object_file *o)
 	if (o->skpfile == NULL || o->is_patch)
 		return 0;
 
-	if (o->applied_patch) {
-		kpinfo("Object '%s' already have a patch, not patching\n",
-		       o->name);
-		return 0;
-	}
-
 	ret = duplicate_kp_file(o);
 	if (ret < 0) {
 		kplogerror("can't duplicate kp_file\n");
+		return -1;
+	}
+
+	if (kpatch_object_check_duplicate_id(o, (const char *)o->kpfile.patch->id)) {
+		kplogerror("A patch with patch-id(%s) is already applied by %s",
+			   o->kpfile.patch->id, o->name);
 		return -1;
 	}
 
@@ -380,53 +388,12 @@ static int
 object_unapply_patch(struct object_file *o, int check_flag);
 
 static int
-object_unapply_old_patch(struct object_file *o)
-{
-	struct kpatch_file *kpatch_applied, *kpatch_storage;
-	int ret;
-
-	if (o->skpfile == NULL || o->is_patch || o->applied_patch == NULL)
-		return 0;
-
-	kpatch_applied = o->applied_patch->kpfile.patch;
-	kpatch_storage = o->skpfile->patch;
-
-	if (kpatch_applied->user_level >= kpatch_storage->user_level) {
-		kpinfo("'%s' applied patch level is %d (storage has %d\n)\n",
-		       o->name,
-		       kpatch_applied->user_level,
-		       kpatch_storage->user_level);
-		return 1;
-	}
-
-	printf("%s: replacing patch level %d with level %d\n",
-	       o->name,
-	       kpatch_applied->user_level,
-	       kpatch_storage->user_level);
-	ret = object_unapply_patch(o, /* check_flag */ 0);
-	if (ret < 0)
-		kperr("can't unapply patch for %s\n", o->name);
-	else {
-		/* TODO(pboldin): handle joining the holes here */
-		o->applied_patch = NULL;
-		o->info = NULL;
-		o->ninfo = 0;
-	}
-
-	return ret;
-}
-
-static int
 kpatch_apply_patches(kpatch_process_t *proc)
 {
 	struct object_file *o;
 	int applied = 0, ret;
 
 	list_for_each_entry(o, &proc->objs, list) {
-
-		ret = object_unapply_old_patch(o);
-		if (ret < 0)
-			break;
 
 		ret = object_apply_patch(o);
 		if (ret < 0)
@@ -492,7 +459,7 @@ int process_patch(int pid, void *_data)
 	 * Because we know uniq BuildID of the object the section addresses
 	 * stored in the patch are valid for the original object.
 	 */
-	ret = kpatch_process_map_object_files(proc);
+	ret = kpatch_process_map_object_files(proc, NULL);
 	if (ret < 0)
 		goto out_free;
 
@@ -551,9 +518,22 @@ object_find_applied_patch_info(struct object_file *o)
 	size_t nalloc = 0;
 	struct process_mem_iter *iter;
 	int ret;
+	struct object_file *applied_patch;
+	const char *patch_id = NULL;
 
 	if (o->info != NULL)
 		return 0;
+
+	if (o->kpfile.patch)
+		patch_id = o->kpfile.patch->id;
+	else
+		return -1;
+
+	applied_patch = kpatch_object_find_applied_patch(o, patch_id);
+	if (!applied_patch) {
+		fprintf(stderr, "Failed to find target applied patch!\n");
+		return -1;
+	}
 
 	iter = kpatch_process_mem_iter_init(o->proc);
 	if (iter == NULL)
@@ -579,8 +559,8 @@ object_find_applied_patch_info(struct object_file *o)
 		o->ninfo++;
 	} while (1);
 
-	o->applied_patch->info = o->info;
-	o->applied_patch->ninfo = o->ninfo;
+	applied_patch->info = o->info;
+	applied_patch->ninfo = o->ninfo;
 
 err:
 	kpatch_process_mem_iter_free(iter);
@@ -654,18 +634,19 @@ kpatch_should_unapply_patch(struct object_file *o,
 static int
 kpatch_unapply_patches(kpatch_process_t *proc,
 		       char *buildids[],
-		       int nbuildids)
+		       int nbuildids,
+		       const char *patch_id)
 {
 	struct object_file *o;
 	int ret;
 	size_t unapplied = 0;
 
-	ret = kpatch_process_associate_patches(proc);
+	ret = kpatch_process_associate_patches(proc, patch_id);
 	if (ret < 0)
 		return ret;
 
 	list_for_each_entry(o, &proc->objs, list) {
-		if (o->applied_patch == NULL)
+		if (o->is_patch || o->num_applied_patch == 0)
 			continue;
 
 		if (!kpatch_should_unapply_patch(o, buildids, nbuildids))
@@ -687,6 +668,7 @@ int process_unpatch(int pid, void *_data)
 	struct unpatch_data *data = _data;
 	char **buildids = data->buildids;
 	int nbuildids = data->nbuildids;
+	const char *patch_id = data->patch_id;
 
 	ret = kpatch_process_init(proc, pid, /* start */ 0, /* send_fd */ -1);
 	if (ret < 0)
@@ -698,7 +680,7 @@ int process_unpatch(int pid, void *_data)
 	if (ret < 0)
 		goto out;
 
-	ret = kpatch_process_map_object_files(proc);
+	ret = kpatch_process_map_object_files(proc, patch_id);
 	if (ret < 0)
 		goto out;
 
@@ -706,7 +688,7 @@ int process_unpatch(int pid, void *_data)
 	if (ret < 0)
 		goto out;
 
-	ret = kpatch_unapply_patches(proc, buildids, nbuildids);
+	ret = kpatch_unapply_patches(proc, buildids, nbuildids, patch_id);
 
 out:
 	kpatch_process_free(proc);

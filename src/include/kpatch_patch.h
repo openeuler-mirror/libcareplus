@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: introduce patch-id
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ ******************************************************************************/
+
 #ifndef __KPATCH_PATCH__
 #define __KPATCH_PATCH__
 
@@ -20,6 +25,7 @@ struct patch_data {
 struct unpatch_data {
 	char **buildids;
 	int nbuildids;
+	const char *patch_id;
 };
 
 int process_patch(int pid, void *_data);

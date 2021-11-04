@@ -1,3 +1,11 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: introduce patch-id
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ *
+ * 2021.09.23 - libcare-ctl: implement applied patch list
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -130,11 +138,12 @@ out_err:
 }
 
 static int
-processes_unpatch(int pid, char *buildids[], int nbuildids)
+processes_unpatch(int pid, char *buildids[], int nbuildids, const char *patch_id)
 {
 	struct unpatch_data data = {
 		.buildids = buildids,
-		.nbuildids = nbuildids
+		.nbuildids = nbuildids,
+		.patch_id = patch_id
 	};
 
 	return processes_do(pid, process_unpatch, &data);
@@ -144,22 +153,24 @@ static int usage_unpatch(const char *err)
 {
 	if (err)
 		fprintf(stderr, "err: %s\n", err);
-	fprintf(stderr, "usage: libcare-ctl unpatch [options] <-p PID> "
+	fprintf(stderr, "usage: libcare-ctl unpatch [options] <-p PID> <-i patch_id>"
 		"[Build-ID or name ...]\n");
 	fprintf(stderr, "\nOptions:\n");
-	fprintf(stderr, "  -h          - this message\n");
-	fprintf(stderr, "  -p <PID>    - target process\n");
+	fprintf(stderr, "  -h               - this message\n");
+	fprintf(stderr, "  -p <PID>         - target process\n");
+	fprintf(stderr, "  -i <patch_id>    - target patch id\n");
 	return err ? 0 : -1;
 }
 
 int cmd_unpatch_user(int argc, char *argv[])
 {
 	int opt, pid = -1, is_pid_set = 0;
+	const char *patch_id = NULL;
 
-	if (argc < 3)
+	if (argc < 4)
 		return usage_unpatch(NULL);
 
-	while ((opt = getopt(argc, argv, "hp:")) != EOF) {
+	while ((opt = getopt(argc, argv, "hp:i:")) != EOF) {
 		switch (opt) {
 		case 'h':
 			return usage_unpatch(NULL);
@@ -167,6 +178,9 @@ int cmd_unpatch_user(int argc, char *argv[])
 			if (strcmp(optarg, "all"))
 				pid = atoi(optarg);
 			is_pid_set = 1;
+			break;
+		case 'i':
+			patch_id = optarg;
 			break;
 		default:
 			return usage_unpatch("unknown option");
@@ -176,13 +190,13 @@ int cmd_unpatch_user(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (!is_pid_set)
-		return usage_patch("PID argument is mandatory");
+	if (!is_pid_set || !patch_id)
+		return usage_unpatch("PID or patch_id argument is mandatory");
 
 	if (!kpatch_check_system())
 		return -1;
 
-	return processes_unpatch(pid, argv, argc);
+	return processes_unpatch(pid, argv, argc, patch_id);
 }
 
 static
@@ -232,6 +246,8 @@ object_info(struct info_data *data, struct object_file *o,
 	int pid = proc->pid;
 	struct kpatch_storage_patch *patch = NULL;
 	int patch_found = PATCH_NOT_FOUND;
+	struct obj_applied_patch *applied_patch;
+	int i = 1;
 
 	if (!o->is_elf || is_kernel_object_name(o->name))
 		return 0;
@@ -262,7 +278,7 @@ object_info(struct info_data *data, struct object_file *o,
 						 buildid,
 						 &patch);
 
-	if (o->applied_patch == NULL && !patch_found)
+	if (o->num_applied_patch == 0 && !patch_found)
 		return 0;
 
 	if (!*pid_printed) {
@@ -270,17 +286,18 @@ object_info(struct info_data *data, struct object_file *o,
 		*pid_printed = 1;
 	}
 
-	printf("%s buildid=%s", o->name, buildid);
-	if (o->applied_patch != NULL) {
-		int patchlvl = o->kpfile.patch->user_level;
-		printf(" patchlvl=%d", patchlvl);
+	printf("process = %s; buildid = %s; applied patch number = %ld:\n", o->name, buildid, o->num_applied_patch);
+	list_for_each_entry(applied_patch, &o->applied_patch, list) {
+		printf("%d. patch->id = %s\n", i, applied_patch->patch_file->kpfile.patch->id);
+		i++;
 	}
+
 	if (storage_patch_found(patch) && patch->patchlevel) {
 		printf(" latest=%d", patch->patchlevel);
 	}
 
 	/* empty patch patchlevel=0 with description of bugs in the version */
-	if (patch && patch->patchlevel == 0 && o->applied_patch == NULL) {
+	if (patch && patch->patchlevel == 0 && o->num_applied_patch == 0) {
 		printf(" %sVULNERABLE%s\n", RED, RESET);
 
 		if (data->print_description) {
@@ -299,7 +316,7 @@ object_info(struct info_data *data, struct object_file *o,
 
 	/* Old or no patch applied but we have one in storage */
 	if (patch && patch->patchlevel != 0 &&
-	    (o->applied_patch == NULL || patch->patchlevel > o->kpfile.patch->user_level)) {
+	    (o->num_applied_patch == 0 || patch->patchlevel > o->kpfile.patch->user_level)) {
 		if (data->print_description) {
 			char *desc;
 
@@ -314,7 +331,7 @@ object_info(struct info_data *data, struct object_file *o,
 	}
 
 	/* patch applied and is latest version. show descripition for it */
-	if (patch && o->applied_patch != NULL && data->print_description) {
+	if (patch && (o->num_applied_patch > 0) && data->print_description) {
 		char *desc;
 
 		printf("\n%slatest patch applied\n", GREEN);
@@ -343,7 +360,7 @@ process_info(int pid, void *_data)
 	if (ret < 0)
 		goto out;
 
-	ret = kpatch_process_map_object_files(proc);
+	ret = kpatch_process_map_object_files(proc, NULL);
 	if (ret < 0)
 		goto out;
 
@@ -614,7 +631,7 @@ server_stress_test(int fd, int argc, char *argv[])
 		if (server_wait(pid, delay) < 0)
 			return 0;
 
-		while (processes_unpatch(pid, 0, 0) < 0)
+		while (processes_unpatch(pid, 0, 0, NULL) < 0)
 			if (server_wait(pid, 1) < 0)
 				return 0;
 		test_info.stat_cycle_num++;

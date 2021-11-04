@@ -1,3 +1,11 @@
+/******************************************************************************
+ * 2021.09.23 - libcare-ctl: introduce patch-id
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ *
+ * 2021.09.23 - libcare-ctl: implement applied patch list
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ ******************************************************************************/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -107,6 +115,8 @@ process_new_object(kpatch_process_t *proc,
 	}
 	list_init(&o->list);
 	list_init(&o->vma);
+	list_init(&o->applied_patch);
+	o->num_applied_patch = 0;
 	o->proc = proc;
 	o->skpfile = NULL;
 	o->dev = dev;
@@ -126,7 +136,6 @@ process_new_object(kpatch_process_t *proc,
 	o->kpta = 0UL;
 	o->info = NULL;
 	o->ninfo = 0;
-	o->applied_patch = NULL;
 	o->vma_start = ~(unsigned long)0;
 	o->load_offset = ~(unsigned long)0;
 	memset(&o->ehdr, 0, sizeof(o->ehdr));
@@ -289,11 +298,16 @@ static void
 object_destroy(struct object_file *o)
 {
 	struct obj_vm_area *ovma, *tmp;
+	struct obj_applied_patch *patch, *temp;
 
 	list_del(&o->list);
 	list_for_each_entry_safe(ovma, tmp, &o->vma, list) {
 		list_del(&ovma->list);
 		free(ovma);
+	}
+	list_for_each_entry_safe(patch, temp, &o->applied_patch, list) {
+		list_del(&patch->list);
+		free(patch);
 	}
 	o->proc->num_objs--;
 	if (o->jmp_table)
@@ -309,7 +323,7 @@ object_destroy(struct object_file *o)
 	if (o->is_patch) {
 		free(o->info);
 	}
-	if (o->applied_patch == NULL)
+	if (o->num_applied_patch == 0)
 		free(o->kpfile.patch);
 	free(o);
 }
@@ -329,8 +343,8 @@ kpatch_object_dump(struct object_file *o)
 	if (log_level < LOG_INFO)
 		return;
 
-	if (o->applied_patch)
-		patchinfo = o->applied_patch->name;
+	if (o->num_applied_patch > 0)
+		patchinfo = "yes";
 	else
 		patchinfo = o->skpfile != NULL ? "yes" : "no";
 
@@ -378,10 +392,11 @@ process_add_vm_hole(kpatch_process_t *proc,
 }
 
 int
-kpatch_process_associate_patches(kpatch_process_t *proc)
+kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 {
 	struct object_file *o, *objpatch;
 	size_t found = 0;
+	size_t found_target = 0;
 
 	list_for_each_entry(objpatch, &proc->objs, list) {
 
@@ -393,21 +408,29 @@ kpatch_process_associate_patches(kpatch_process_t *proc)
 			struct obj_vm_area *patchvma;
 
 			bid = kpatch_get_buildid(o);
-			if (o->applied_patch != NULL || bid == NULL ||
+			if (bid == NULL ||
 			    strcmp(bid, objpatch->kpfile.patch->uname))
 				continue;
 
-			o->applied_patch = objpatch;
-			patchvma = list_first_entry(&objpatch->vma,
-						    struct obj_vm_area,
-						    list);
-			o->kpta = patchvma->inmem.start;
-			o->kpfile = objpatch->kpfile;
+			if (kpatch_object_add_applied_patch(o, objpatch) < 0)
+				return -1;
+
+			if (patch_id && !strcmp(objpatch->kpfile.patch->id, patch_id)) {
+				patchvma = list_first_entry(&objpatch->vma,
+							    struct obj_vm_area,
+							    list);
+				o->kpta = patchvma->inmem.start;
+				o->kpfile = objpatch->kpfile;
+				found_target = 1;
+			}
 
 			found++;
 			break;
 		}
 	}
+
+	if (patch_id && !found_target)
+		fprintf(stderr, "Failed to find target patch with patch_id=%s!\n", patch_id);
 
 	return found;
 }
@@ -506,7 +529,7 @@ error:
 }
 
 int
-kpatch_process_map_object_files(kpatch_process_t *proc)
+kpatch_process_map_object_files(kpatch_process_t *proc, const char *patch_id)
 {
 	struct object_file *o;
 	int ret;
@@ -521,7 +544,7 @@ kpatch_process_map_object_files(kpatch_process_t *proc)
 			return -1;
 	}
 
-	ret = kpatch_process_associate_patches(proc);
+	ret = kpatch_process_associate_patches(proc, patch_id);
 	if (ret >= 0) {
 		kpinfo("Found %d applied patch(es).\n", ret);
 	}
@@ -1123,4 +1146,55 @@ kpatch_process_get_obj_by_regex(kpatch_process_t *proc, const char *regex)
 
 	regfree(&r);
 	return found;
+}
+
+int
+kpatch_object_check_duplicate_id(struct object_file *o, const char *patch_id)
+{
+	struct obj_applied_patch *applied_patch;
+
+	list_for_each_entry(applied_patch, &o->applied_patch, list) {
+		if (!strcmp(patch_id, applied_patch->patch_file->kpfile.patch->id))
+			return 1;
+	}
+
+	return 0;
+}
+
+int
+kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new)
+{
+	struct obj_applied_patch *patch;
+	const char *patch_id;
+
+	patch = malloc(sizeof(*patch));
+	if (!patch)
+		return -1;
+
+	patch_id = new->kpfile.patch->id;
+	if (kpatch_object_check_duplicate_id(o, patch_id)) {
+		free(patch);
+		return 0;
+	}
+
+	patch->patch_file = new;
+	list_add(&patch->list, &o->applied_patch);
+	o->num_applied_patch++;
+
+	return 0;
+}
+
+struct object_file *
+kpatch_object_find_applied_patch(struct object_file *o, const char *patch_id)
+{
+	struct obj_applied_patch *applied_patch;
+	struct object_file *target = NULL;
+
+	list_for_each_entry(applied_patch, &o->applied_patch, list) {
+		target = applied_patch->patch_file;
+		if (!strcmp(target->kpfile.patch->id, patch_id))
+			return target;
+	}
+
+	return NULL;
 }
