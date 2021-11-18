@@ -4,8 +4,7 @@ TARGETS = kpatch_gensrc \
 	  libcare-cc \
 	  libcare-client \
 	  libcare-ctl \
-	  libcare-dump \
-	  libcare-stresstest
+	  libcare-dump
 DEBUG = yes # comment out this line if not debug
 
 SRC_PATH := $(shell pwd)
@@ -50,10 +49,6 @@ libcare-ctl: kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_p
 libcare-ctl: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
 libcare-ctl: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
 
-libcare-stresstest: kpatch_user-stresstest.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
-libcare-stresstest: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
-libcare-stresstest: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
-
 libcare-client: libcare-client.o
 
 kpatch_strip: kpatch_strip.o kpatch_elf_objinfo.o kpatch_log.o arch_strip.o
@@ -76,9 +71,6 @@ endif
 
 %.o: %.c deps/%.d
 	$(CC) $(CFLAGS) $(CFLAGS_$(*)) -o $(@) -c $(<)
-
-%-stresstest.o: %.c
-	$(CC) -DSTRESS_TEST=1 $(CFLAGS) $(CFLAGS_$(*)) -o $(@) -c $(<)
 
 clean:
 	rm -rf *.o core.* deps/*.d $(TARGETS)
