@@ -79,6 +79,7 @@ endif
 
 clean:
 	rm -rf *.o core.* deps/*.d $(TARGETS)
+	rm -rf arch.desc
 	for f in tests/gensrc/*.s; do \
 		rm -f $$f.test; \
 	done
