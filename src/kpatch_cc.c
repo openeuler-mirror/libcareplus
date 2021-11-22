@@ -1,3 +1,13 @@
+/******************************************************************************
+ * 2021.10.12 - kpatch_cc: Optimize build_multiple() a little bit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+******************************************************************************/
 
 #include <sys/wait.h>
 #include <sys/stat.h>
@@ -247,7 +257,6 @@ static void init(int argc_, const char **argv_)
 	char *args;
 	int ninput = 0, i;
 	const char *realgccenv = "KPCCREAL";
-	static char pathbuf[PATH_MAX];
 
 	prog_name = argv_[0];
 
@@ -261,17 +270,7 @@ static void init(int argc_, const char **argv_)
 
 	kpatch_path = getenv("KPATCH_PATH");
 	if (kpatch_path == NULL) {
-		strcpy(pathbuf, argv_[0]);
-		dirname(pathbuf);
-		strcat(pathbuf, "/kpatch_gensrc");
-		if (access(pathbuf, X_OK) != 0) {
-			kpccfatal("can't find kpatch_gensrc at %s, define KPATCH_PATH\n",
-				  pathbuf);
-		}
-
-		dirname(pathbuf);
-
-		kpatch_path = pathbuf;
+		kpccfatal("KPATCH_PATH is undefined\n");
 	}
 
 	kpatch_stage = getenv("KPATCH_STAGE");
@@ -309,7 +308,7 @@ static void init(int argc_, const char **argv_)
 	if (args != NULL) {
 		nremove_args = split_args(remove_args, args);
 
-		qsort(remove_args, nremove_args, sizeof(*remove_args),
+		qsort(remove_args, nremove_args, sizeof(char *),
 		      (int (*)(const void *, const void *))strcmp);
 	}
 
@@ -440,6 +439,11 @@ static void init(int argc_, const char **argv_)
 	if ((action == COMPILE_SINGLE || action == GENERATE_ASSEMBLY_SINGLE)
 	    && output_file == NULL && input[idxinput_file] != stdin_path) {
 		char *ofile = (char *)basename((char *)argv[idxinput_file]);
+
+		if (ofile == NULL) {
+			fprintf(stderr, "ofile is null!\n");
+			exit(EXIT_FAILURE);
+		}
 		ofile = strdup(ofile);
 		CHECK_ALLOC(ofile);
 
@@ -545,11 +549,13 @@ static void fini(void)
 
 	if (argv_allocated) {
 		free(argv);
+		argv = NULL;
 		argv_allocated = 1;
 	}
 
 	if (output_file_allocated) {
 		free((void *)output_file);
+		output_file = NULL;
 		output_file_allocated = 0;
 	}
 }
@@ -573,7 +579,7 @@ static int modify_args(void)
 			continue;
 
 		found = bsearch(argv[i], remove_args, nremove_args,
-				sizeof (*remove_args),
+				sizeof (char *),
 				bsearch_strcmp);
 
 		if (found != NULL)
@@ -841,6 +847,7 @@ static int build_multiple(void)
 	char aspath[PATH_MAX];
 	int i, j, rv;
 	int newargc = argc - ninput_files + 1 + 2 + 1 + 1;
+	int argnum;
 	const char *newargv[newargc];
 
 	i = j = 0;
@@ -852,17 +859,22 @@ static int build_multiple(void)
 
 		newargv[i++] = argv[j++];
 	}
-	newargc = i;
-	newargv[newargc + 4] = NULL;
 
-	newargv[newargc + 2] = "-o";
-	newargv[newargc + 3] = aspath;
+	argnum = i;
+	if (argnum + 4 > newargc) {
+		kpccfatal("Failed to build multiple due to buffer overflow.\n");
+	}
+
+	newargv[argnum + 4] = NULL;
+
+	newargv[argnum + 2] = "-o";
+	newargv[argnum + 3] = aspath;
 
 	for (i = 1; i < argc; i++) {
 		if (input_files[i] == NULL)
 			continue;
 
-		newargv[newargc + 1] = input_files[i];
+		newargv[argnum + 1] = input_files[i];
 		(void) get_assembler_filename(aspath, input_files[i]);
 
 		switch (get_file_type(input_files[i])) {
@@ -880,13 +892,13 @@ passthrough_file:
 			if (!kpatch_gensrc_asm)
 				goto passthrough_file;
 
-			newargv[newargc + 0] = "-E";
+			newargv[argnum + 0] = "-E";
 			rv = run_cmd(newargv, NULL);
 			if (rv)
 				goto out;
 			break;
 		case SRC_FILE:
-			newargv[newargc + 0] = "-S";
+			newargv[argnum + 0] = "-S";
 			rv = run_cmd(newargv, NULL);
 			if (rv)
 				goto out;
@@ -916,8 +928,10 @@ passthrough_file:
 
 out:
 	for (j = 1; j < i; j++) {
-		if (input_files[j])
+		if (input_files[j]) {
 			free((void *)input_files[j]);
+			input_files[j] = NULL;
+		}
 	}
 
 	return rv;
@@ -1092,7 +1106,7 @@ static int get_assembler_filename(char *aspath, const char *srcorobjpath)
 	rv = snprintf(aspath, PATH_MAX, "%s%s/%s%s.%s.s",
 		      kpatch_asm_dir ?: "",
 		      dname, kpatch_prefix, bname, kpatch_stage);
-	if (rv == PATH_MAX)
+	if (rv >= PATH_MAX)
 		kpccfatal("%s: buffer overflow\n", __func__);
 
 	if (kpatch_asm_dir != NULL) {

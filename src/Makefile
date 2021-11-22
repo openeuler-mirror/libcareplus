@@ -2,15 +2,16 @@ TARGETS = kpatch_gensrc \
 	  kpatch_make \
 	  kpatch_strip \
 	  libcare-cc \
+	  libcare-server \
 	  libcare-client \
 	  libcare-ctl \
-	  libcare-stresstest
+	  libcare-dump
 DEBUG = yes # comment out this line if not debug
 
 SRC_PATH := $(shell pwd)
 
 CC = gcc
-CFLAGS_MISC = -Wall -g -O2 -D_GNU_SOURCE -I $(SRC_PATH)
+CFLAGS_MISC = -Wall -Werror -g -O2 -D_GNU_SOURCE -D_FORTIFY_SOURCE=2 -I $(SRC_PATH)
 
 cc-option = $(shell if $(CC) $(CFLAGS_MISC) $(1) -S -o /dev/null -xc /dev/null \
 		> /dev/null 2>&1; then echo "$(1)"; else echo "$(2)"; fi ;)
@@ -28,7 +29,7 @@ VPATH = arch/x86
 endif
 
 ifdef DEBUG
-CFLAGS += -DDEBUG -O0 -g
+CFLAGS += -DDEBUG -O0 -g -Wno-cpp
 endif
 
 ifeq ($(STATIC),y)
@@ -40,18 +41,18 @@ all: $(TARGETS)
 .SUFFIXES:
 
 kpatch_gensrc: kpatch_gensrc.o kpatch_dbgfilter.o kpatch_parse.o kpatch_io.o rbtree.o kpatch_log.o arch_parse.o
-kpatch_make: kpatch_make.o
+kpatch_make: kpatch_make.o kpatch_log.o
 
 LIBUNWIND_LIBS := $(shell pkg-config --libs libunwind libunwind-ptrace)
 
 
-libcare-ctl: kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
+libcare-ctl: libcare-ctl.o kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
 libcare-ctl: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
 libcare-ctl: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
 
-libcare-stresstest: kpatch_user-stresstest.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
-libcare-stresstest: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
-libcare-stresstest: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
+libcare-server: libcare-server.o kpatch_user.o kpatch_storage.o kpatch_patch.o kpatch_elf.o kpatch_ptrace.o kpatch_coro.o arch_patch.o arch_elf.o arch_ptrace.o arch_coro.o
+libcare-server: kpatch_process.o kpatch_common.o rbtree.o kpatch_log.o arch_process.o
+libcare-server: LDLIBS += -lelf -lrt $(LIBUNWIND_LIBS)
 
 libcare-client: libcare-client.o
 
@@ -59,6 +60,7 @@ kpatch_strip: kpatch_strip.o kpatch_elf_objinfo.o kpatch_log.o arch_strip.o
 kpatch_strip: LDLIBS = -lelf
 
 libcare-cc: kpatch_cc.o
+libcare-dump: libcare-dump.o
 
 $(TARGETS): %:
 	$(CC) -o $(@) $(^) $(STATIC_OPTS) $(LDLIBS)
@@ -75,11 +77,9 @@ endif
 %.o: %.c deps/%.d
 	$(CC) $(CFLAGS) $(CFLAGS_$(*)) -o $(@) -c $(<)
 
-%-stresstest.o: %.c
-	$(CC) -DSTRESS_TEST=1 $(CFLAGS) $(CFLAGS_$(*)) -o $(@) -c $(<)
-
 clean:
 	rm -rf *.o core.* deps/*.d $(TARGETS)
+	rm -rf arch.desc
 	for f in tests/gensrc/*.s; do \
 		rm -f $$f.test; \
 	done
@@ -111,12 +111,14 @@ libexecdir ?= /usr/local/libexec
 INSTALL ?= install
 install: all
 	$(INSTALL) -d $(DESTDIR)/$(bindir)
-	$(INSTALL) -m 0755 libcare-ctl $(DESTDIR)/$(bindir)/libcare-ctl
-	$(INSTALL) -m 0755 libcare-client $(DESTDIR)/$(bindir)/libcare-client
-	$(INSTALL) -m 0755 libcare-cc $(DESTDIR)/$(bindir)/libcare-cc
-	$(INSTALL) -m 0755 libcare-patch-make $(DESTDIR)/$(bindir)/libcare-patch-make
-	$(INSTALL) -m 0755 kpatch_gensrc $(DESTDIR)/$(bindir)/kpatch_gensrc
-	$(INSTALL) -m 0755 kpatch_make $(DESTDIR)/$(bindir)/kpatch_make
-	$(INSTALL) -m 0755 kpatch_strip $(DESTDIR)/$(bindir)/kpatch_strip
+	$(INSTALL) -m 0500 libcare-ctl $(DESTDIR)/$(bindir)/libcare-ctl
+	$(INSTALL) -m 0500 libcare-server $(DESTDIR)/$(bindir)/libcare-server
+	$(INSTALL) -m 0500 libcare-client $(DESTDIR)/$(bindir)/libcare-client
+	$(INSTALL) -m 0500 libcare-cc $(DESTDIR)/$(bindir)/libcare-cc
+	$(INSTALL) -m 0500 libcare-patch-make $(DESTDIR)/$(bindir)/libcare-patch-make
+	$(INSTALL) -m 0500 kpatch_gensrc $(DESTDIR)/$(bindir)/kpatch_gensrc
+	$(INSTALL) -m 0500 kpatch_make $(DESTDIR)/$(bindir)/kpatch_make
+	$(INSTALL) -m 0500 kpatch_strip $(DESTDIR)/$(bindir)/kpatch_strip
+	$(INSTALL) -m 0500 libcare-dump $(DESTDIR)/$(bindir)/libcare-dump
 
 .PHONY:	all clean test tests tests-gensrc tests-strip

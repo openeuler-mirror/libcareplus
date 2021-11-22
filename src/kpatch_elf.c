@@ -1,3 +1,14 @@
+/******************************************************************************
+ * 2021.10.11 - return: make every return properly other than direct-exit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -444,6 +455,10 @@ struct kpatch_jmp_table *kpatch_new_jmp_table(int entries)
 	size_t sz = sizeof(*jtbl) + entries * sizeof(struct kpatch_jmp_table_entry);
 
 	jtbl = malloc(sz);
+	if (jtbl == NULL) {
+		kperr("Failed to malloc jump table !\n");
+		return NULL;
+	}
 	memset(jtbl, 0, sz);
 	jtbl->size = sz;
 	jtbl->max_entry = entries;
@@ -520,13 +535,16 @@ sym_name_cmp(const void *a_, const void *b_, void *s_)
 static int
 elf_object_load_dynsym(struct object_file *o)
 {
-	int rv;
+	int rv = -1;
+	int ret = -1;
 	size_t i;
 	Elf64_Dyn *dynamics = NULL;
 	char *buffer = NULL;
 	Elf64_Phdr *phdr;
-	unsigned long symtab_addr, strtab_addr;
-	unsigned long symtab_sz, strtab_sz;
+	unsigned long symtab_addr = 0;
+	unsigned long strtab_addr = 0;
+	unsigned long symtab_sz = 0;
+	unsigned long strtab_sz = 0;
 
 	if (o->dynsyms != NULL)
 		return 0;
@@ -578,11 +596,13 @@ elf_object_load_dynsym(struct object_file *o)
 		}
 	}
 
+	/* Note strtab_addr, strtab_addr, strtab_sz should always have been assigned by curdyn */
 	symtab_sz = (strtab_addr - symtab_addr);
 
 	buffer = malloc(strtab_sz + symtab_sz);
-	if (buffer == NULL)
+	if (buffer == NULL) {
 		goto out_free;
+	}
 
 	rv = kpatch_process_mem_read(o->proc,
 				     symtab_addr,
@@ -594,7 +614,9 @@ elf_object_load_dynsym(struct object_file *o)
 	o->dynsyms = (Elf64_Sym*) buffer;
 	o->ndynsyms = symtab_sz / sizeof(Elf64_Sym);
 	o->dynsymnames = malloc(sizeof(char *) * o->ndynsyms);
-
+	if (o->dynsymnames == NULL) {
+		goto out_free;
+	}
 	qsort_r((void *)o->dynsyms, o->ndynsyms, sizeof(Elf64_Sym),
 		sym_name_cmp, buffer + symtab_sz);
 
@@ -604,14 +626,15 @@ elf_object_load_dynsym(struct object_file *o)
 		o->dynsymnames[i] = buffer + symtab_sz + o->dynsyms[i].st_name;
 	}
 	o->ndynsyms = i;
-
+	ret = 0;
 
 out_free:
-	if (rv < 0)
+	if (rv < 0) {
 		free(buffer);
+	}
 	free(dynamics);
 
-	return rv;
+	return ret;
 }
 
 /* TODO reuse kpatch_cc */
@@ -676,9 +699,12 @@ kpatch_resolve_undefined(struct object_file *obj,
 
 		addr = vaddr2addr(o, addr);
 
-		if (type == STT_GNU_IFUNC)
-			if (kpatch_arch_ptrace_resolve_ifunc(proc2pctx(obj->proc), &addr) < 0)
-				kpfatalerror("kpatch_arch_ptrace_resolve_ifunc failed\n");
+		if (type == STT_GNU_IFUNC) {
+			if (kpatch_arch_ptrace_resolve_ifunc(proc2pctx(obj->proc), &addr) < 0) {
+				kperr("kpatch_arch_ptrace_resolve_ifunc failed\n");
+				return 0;
+			}
+		}
 
 		break;
 	}
@@ -693,6 +719,7 @@ symbol_resolve(struct object_file *o,
 	       char *symname)
 {
 	unsigned long uaddr;
+	unsigned long st_value;
 
 	switch(GELF_ST_TYPE(s->st_info)) {
 	case STT_SECTION:
@@ -702,7 +729,7 @@ symbol_resolve(struct object_file *o,
 	case STT_FUNC:
 	case STT_OBJECT:
 
-		/* TODO(pboldin) this breaks rule for overriding
+		/* this breaks rule for overriding
 		 * symbols via dynamic libraries. Fix it. */
 		if (s->st_shndx == SHN_UNDEF &&
 		    GELF_ST_BIND(s->st_info) == STB_GLOBAL) {
@@ -718,8 +745,12 @@ symbol_resolve(struct object_file *o,
 			}
 			/* OK, we overuse st_size to store original offset */
 			s->st_size = uaddr;
-			s->st_value = kpatch_arch_add_jmp_entry(o, uaddr);
-
+			st_value = kpatch_arch_add_jmp_entry(o, uaddr);
+			if (!st_value) {
+				kperr("Failed to add jmp entry");
+				return -1;
+			}
+			s->st_value = st_value;
 			kpdebug("symbol '%s' = 0x%lx\n",
 				symname, uaddr);
 			kpdebug("jmptable '%s' = 0x%lx\n",
@@ -759,7 +790,9 @@ int kpatch_resolve(struct object_file *o)
 	GElf_Ehdr *ehdr;
 	GElf_Shdr *shdr;
 	GElf_Sym *sym;
-	int i, symidx, rv;
+	int i;
+	int rv;
+	int symidx = -1;
 	char *strsym;
 
 	ehdr = (void *)o->kpfile.patch + o->kpfile.patch->kpatch_offset;
@@ -790,6 +823,10 @@ int kpatch_resolve(struct object_file *o)
 		kpdebug("section '%s' = 0x%lx\n", secname(ehdr, s), s->sh_addr);
 	}
 
+	if (symidx == -1) {
+		kperr("Unexpected symidx!\n");
+		return -1;
+	}
 	kpdebug("Resolving symbols for '%s'\n", o->name);
 	sym = (void *)ehdr + shdr[symidx].sh_offset;
 	strsym = (void *)ehdr + shdr[shdr[symidx].sh_link].sh_offset;

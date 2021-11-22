@@ -1,9 +1,27 @@
 /******************************************************************************
+ * 2021.10.12 - kpatch: clear code checker warnings
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.11 - kpatch: rename uname to buildid
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.07 - process: add some checks before patching
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
  * 2021.09.23 - libcare-ctl: implement applied patch list
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #include <stdio.h>
@@ -141,6 +159,7 @@ process_new_object(kpatch_process_t *proc,
 	memset(&o->ehdr, 0, sizeof(o->ehdr));
 	o->phdr = NULL;
 	o->is_elf = 0;
+	o->is_unpatch_target_elf = 0;
 	o->dynsyms = NULL;
 	o->ndynsyms = 0;
 	o->dynsymnames = NULL;
@@ -180,14 +199,14 @@ process_get_object_type(kpatch_process_t *proc,
 				      vma->start,
 				      buf,
 				      bufsize);
-	if (ret <= SELFMAG)
+	if (ret < 0)
 		return -1;
 
 	if (type == OBJECT_KPATCH) {
 		struct kpatch_file *pkpfile = (struct kpatch_file *)buf;
 
 		if (!strcmp(pkpfile->magic, KPATCH_FILE_MAGIC1)) {
-			sprintf(name, "[kpatch-%s]", pkpfile->uname);
+			sprintf(name, "[kpatch-%s]", pkpfile->buildid);
 			return type;
 		}
 	}
@@ -358,7 +377,7 @@ kpatch_object_dump(struct object_file *o)
 }
 
 static unsigned int
-perms2prot(char *perms)
+perms2prot(const char *perms)
 {
 	unsigned int prot = 0;
 
@@ -396,7 +415,7 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 {
 	struct object_file *o, *objpatch;
 	size_t found = 0;
-	size_t found_target = 0;
+	size_t unpatch_target_elf_num = 0;
 
 	list_for_each_entry(objpatch, &proc->objs, list) {
 
@@ -409,7 +428,7 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 
 			bid = kpatch_get_buildid(o);
 			if (bid == NULL ||
-			    strcmp(bid, objpatch->kpfile.patch->uname))
+			    strcmp(bid, objpatch->kpfile.patch->buildid))
 				continue;
 
 			if (kpatch_object_add_applied_patch(o, objpatch) < 0)
@@ -421,7 +440,8 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 							    list);
 				o->kpta = patchvma->inmem.start;
 				o->kpfile = objpatch->kpfile;
-				found_target = 1;
+				o->is_unpatch_target_elf = 1;
+				unpatch_target_elf_num++;
 			}
 
 			found++;
@@ -429,8 +449,10 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 		}
 	}
 
-	if (patch_id && !found_target)
+	if (patch_id && !unpatch_target_elf_num) {
 		fprintf(stderr, "Failed to find target patch with patch_id=%s!\n", patch_id);
+		return -1;
+	}
 
 	return found;
 }
@@ -549,7 +571,7 @@ kpatch_process_map_object_files(kpatch_process_t *proc, const char *patch_id)
 		kpinfo("Found %d applied patch(es).\n", ret);
 	}
 
-	return 0;
+	return ret;
 }
 
 static void
@@ -576,7 +598,23 @@ process_detach(kpatch_process_t *proc)
 		unw_destroy_addr_space(proc->ptrace.unwd);
 
 	list_for_each_entry_safe(p, ptmp, &proc->ptrace.pctxs, list) {
-		if (kpatch_ptrace_detach(p) == -ESRCH) {
+		/**
+		 * If kpatch_ptrace_detach(p) return -ESRCH, there are two situations,
+		 * as described below:
+		 * 1. the specified thread does not exist, it means the thread dead
+		 *    during the attach processing, so we need to wait for the thread
+		 *    to exit;
+		 * 2. the specified thread is not currently being traced by the libcare,
+		 *    or is not stopped, so we just ignore it;
+		 *
+		 * We using the running variable of the struct kpatch_ptrace_ctx to
+		 * distinguish them:
+		 * 1. if pctx->running = 0, it means the thread is traced by libcare, we
+		 *    will wait for the thread to exit;
+		 * 2. if pctx->running = 1, it means we can not sure about the status of
+		 *    the thread, we just ignore it;
+		 */
+		if (kpatch_ptrace_detach(p) == -ESRCH && !p->running) {
 			do {
 				pid = waitpid(p->pid, &status, __WALL);
 			} while (pid > 0 && !WIFEXITED(status));
@@ -634,6 +672,7 @@ process_list_threads(kpatch_process_t *proc,
 
 dealloc:
 	free(pids);
+	*ppids = NULL;
 	*alloc = *npids = 0;
 	return -1;
 }
@@ -731,8 +770,6 @@ kpatch_process_attach(kpatch_process_t *proc)
 		kpinfo(", %d", pids[i]);
 	kpinfo("\n");
 
-	free(pids);
-
 	if (proc->ptrace.unwd == NULL) {
 		proc->ptrace.unwd = unw_create_addr_space(&_UPT_accessors,
 							  __LITTLE_ENDIAN);
@@ -742,6 +779,7 @@ kpatch_process_attach(kpatch_process_t *proc)
 		}
 	}
 
+	free(pids);
 	return 0;
 
 detach:
@@ -858,13 +896,14 @@ process_get_comm(kpatch_process_t *proc)
 	ret = readlink(path, realpath, sizeof(realpath));
 	if (ret < 0)
 		return -1;
-	realpath[ret] = '\0';
+	realpath[ret - 1] = '\0';
 	bn = basename(realpath);
-	strncpy(path, bn, sizeof(path));
+	strncpy(path, bn, sizeof(path) - 1);
 	if ((c = strstr(path, " (deleted)")))
 		*c = '\0';
-	strncpy(proc->comm, path, sizeof(proc->comm));
 
+	proc->comm[sizeof(proc->comm) - 1] = '\0';
+	strncpy(proc->comm, path, sizeof(proc->comm) - 1);
 	if (!strncmp(proc->comm, "ld", 2)) {
 		proc->is_ld_linux = 1;
 		return process_get_comm_ld_linux(proc);
@@ -1014,13 +1053,6 @@ hole_size(struct vm_hole *hole)
 	return hole->end - hole->start;
 }
 
-unsigned long
-random_from_range(unsigned long min, unsigned long max)
-{
-	/* TODO this is not uniform nor safe */
-	return min + random() % (max - min);
-}
-
 int
 kpatch_object_allocate_patch(struct object_file *o,
 			     size_t sz)
@@ -1148,17 +1180,18 @@ kpatch_process_get_obj_by_regex(kpatch_process_t *proc, const char *regex)
 	return found;
 }
 
-int
-kpatch_object_check_duplicate_id(struct object_file *o, const char *patch_id)
+struct object_file *
+kpatch_object_get_applied_patch_by_id(struct object_file *o,
+                                            const char *patch_id)
 {
 	struct obj_applied_patch *applied_patch;
 
 	list_for_each_entry(applied_patch, &o->applied_patch, list) {
 		if (!strcmp(patch_id, applied_patch->patch_file->kpfile.patch->id))
-			return 1;
+			return applied_patch->patch_file;
 	}
 
-	return 0;
+	return NULL;
 }
 
 int
@@ -1172,7 +1205,7 @@ kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new)
 		return -1;
 
 	patch_id = new->kpfile.patch->id;
-	if (kpatch_object_check_duplicate_id(o, patch_id)) {
+	if (kpatch_object_get_applied_patch_by_id(o, patch_id)) {
 		free(patch);
 		return 0;
 	}
@@ -1182,19 +1215,4 @@ kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new)
 	o->num_applied_patch++;
 
 	return 0;
-}
-
-struct object_file *
-kpatch_object_find_applied_patch(struct object_file *o, const char *patch_id)
-{
-	struct obj_applied_patch *applied_patch;
-	struct object_file *target = NULL;
-
-	list_for_each_entry(applied_patch, &o->applied_patch, list) {
-		target = applied_patch->patch_file;
-		if (!strcmp(target->kpfile.patch->id, patch_id))
-			return target;
-	}
-
-	return NULL;
 }

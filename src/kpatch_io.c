@@ -1,3 +1,8 @@
+/******************************************************************************
+ * 2021.10.11 - kpatch: clear code checker warnings
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -25,7 +30,7 @@ void *kp_realloc(void *p, int oldsz, int newsz)
 	return p2;
 }
 
-int read_file(struct kp_file *file, char *fname)
+int read_file(struct kp_file *file, const char *fname)
 {
 	int sz = 64;
 	char buf[BUFSIZE];
@@ -65,7 +70,7 @@ int read_file(struct kp_file *file, char *fname)
 	return 0;
 }
 
-int create_file(struct kp_file *file, char *fname)
+int create_file(struct kp_file *file, const char *fname)
 {
 	if (!strcmp(fname, "-")) {
 		file->f = stdout;
@@ -80,5 +85,6 @@ int create_file(struct kp_file *file, char *fname)
 
 void close_file(struct kp_file *file)
 {
-	fclose(file->f);
+	if (file->f)
+		fclose(file->f);
 }

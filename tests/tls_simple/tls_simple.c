@@ -1,7 +1,12 @@
+/******************************************************************************
+ * 2021.10.13 - test: fix some problems in UT tests
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ ******************************************************************************/
+
 
 #include <stdio.h>
-#include <time.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int *p;
 int __thread v;

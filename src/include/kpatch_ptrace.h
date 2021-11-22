@@ -1,3 +1,11 @@
+/******************************************************************************
+ * 2021.10.11 - kpatch_ptrace: fix x86 compile warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ ******************************************************************************/
+
 #ifndef __KPATCH_PTRACE_H__
 #define __KPATCH_PTRACE_H__
 
@@ -56,7 +64,7 @@ int kpatch_ptrace_handle_ld_linux(kpatch_process_t *proc,
 				  unsigned long *pentry_point);
 
 
-int wait_for_stop(struct kpatch_ptrace_ctx *pctx, void *data);
+int wait_for_stop(struct kpatch_ptrace_ctx *pctx, const void *data);
 int get_threadgroup_id(int tid);
 int kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc);
 int kpatch_ptrace_get_entry_point(struct kpatch_ptrace_ctx *pctx,
@@ -66,7 +74,7 @@ int kpatch_ptrace_get_entry_point(struct kpatch_ptrace_ctx *pctx,
 					    having non-zero execute_until */
 int kpatch_ptrace_execute_until(kpatch_process_t *proc,
 				int timeout_msec,
-				int flags);
+				unsigned int flags);
 
 int kpatch_execute_remote(struct kpatch_ptrace_ctx *pctx,
 			  const unsigned char *code,
@@ -135,9 +143,8 @@ kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
 			   const unsigned char *code,
 			   size_t codelen,
 			   struct user_regs_struct *pregs,
-			   int (*func)(struct kpatch_ptrace_ctx *pctx,
-				       void *data),
-			   void *data);
+			   int (*func)(struct kpatch_ptrace_ctx *pctx, const void *data),
+			   const void *data);
 
 int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 		unsigned long arg1, unsigned long arg2, unsigned long arg3,

@@ -16,28 +16,30 @@
 	$(KPATCH_STRIP) --rel-fixup $(word 2,$^) $@
 	$(KPATCH_STRIP) --undo-link $(word 2,$^) $@
 
+PATCHID ?= 0001
+
 %.kpatch: %.undo-link %
 	buildid=$(call get_buildid,$(word 2,$^))	&&		\
-	$(KPATCH_MAKE) -b $${buildid} $< -o $@		&&		\
+	$(KPATCH_MAKE) -b $${buildid} -i $(PATCHID) $< -o $@		&&		\
 	cp -fs $@ $(OBJDIR)/$${buildid}.kpatch
 
 $(OBJDIR)/%.o: $(OBJDIR)/%.s
 	$(AS) $< -o $@
 
 $(OBJDIR)/%.orig.s: %.c
-	$(CC) $< -S -o - $(CFLAGS) | \
-		$(KPATCH_GENSRC) --dbg-filter --os=rhel6 -i - -o $@
+	$(CC) $< -S -O0 -o - $(CFLAGS) | \
+		$(KPATCH_GENSRC) --dbg-filter --test-mode --os=rhel6 -i - -o $@
 
 DIFFEXT ?= diff
 
 $(OBJDIR)/%.patched.s: %.c %.$(DIFFEXT)
 	patch -b -p1 < $(word 2,$^)
-	$(CC) $< -S -o - $(CFLAGS) | \
-		$(KPATCH_GENSRC) --dbg-filter --os=rhel6 -i - -o $@
+	$(CC) $< -S -O0 -o - $(CFLAGS) | \
+		$(KPATCH_GENSRC) --dbg-filter --test-mode --os=rhel6 -i - -o $@
 	mv $<.orig $<
 
 $(OBJDIR)/%.s: $(OBJDIR)/%.orig.s $(OBJDIR)/%.patched.s
-	$(KPATCH_GENSRC) --os=rhel6 -i $< -i $(word 2,$^) --force-global \
+	$(KPATCH_GENSRC) --os=rhel6 --test-mode -i $< -i $(word 2,$^) --force-global \
 		--force-gotpcrel -o $@
 
 lib%.patched: LDFLAGS += -shared

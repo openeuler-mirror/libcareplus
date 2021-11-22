@@ -1,4 +1,4 @@
-#!/bin/sh -e
+#!/bin/sh
 
 usage() {
 cat<<'EOF'
@@ -8,6 +8,7 @@ Usage:	libcare-patch-make [-h|--help] [-u|--update || -c|--clean]
 	[-s|--srcdir=SRCDIR] \
 	[-d|--destdir=DESTDIRVAR] \
 	[-i|--id=PATCH-ID] \
+	[-b|--buildid=BUILD-ID] \
 	[-j|--jobs=<number of jobs>] \
 	PATCH1 PATCH2 ...
 
@@ -20,6 +21,7 @@ install with specified DESTDIR.
   -d --destdir	specify variable makefile system uses to specify destination
 		directory for the installation
   -i --id>-give this patch an unique id (less than 7 char)
+  -b --buildid	give this patch an unique build-id
   -j --jobs 	specify variable makefile system jobs of compile, for example
   		`make -j 4` is startup `4` jobs to compile.
 EOF
@@ -29,6 +31,9 @@ EOF
 
 prepare_env() {
 	KPATCH_PATH=$(dirname $0)
+	export KP_EXECVE_DEBUG=1;
+	export KPCC_DEBUG=1;
+	export KPATCH_PATH=$(dirname $0)
 
 	if test ! -x "$KPATCH_PATH/kpatch_gensrc"; then
 		echo "kpatch tools are missing" >&2
@@ -81,7 +86,7 @@ build_objects() {
 	test $jobs_make && JOBS_MAKE="-j $jobs_make"
 
 	if test -n "$do_clean"; then
-		make $LPMAKEFILE clean >$MAKE_OUTPUT 2>&1
+		make $LPMAKEFILE $JOBS_MAKE clean >$MAKE_OUTPUT 2>&1
 		rm -rf "$LPMAKE_ORIGINAL_DIR" "$LPMAKE_PATCHED_DIR"
 	fi
 
@@ -92,7 +97,7 @@ build_objects() {
 	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
 
 	echo "${green}INSTALLING ORIGINAL OBJECTS INTO $LPMAKE_ORIGINAL_DIR${reset}"
-	make $LPMAKEFILE install				\
+	make $LPMAKEFILE $JOBS_MAKE install			\
 		"$destdir=$LPMAKE_ORIGINAL_DIR"			\
 		>$MAKE_OUTPUT 2>&1
 
@@ -118,7 +123,7 @@ build_objects() {
 	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
 
 	echo "${green}INSTALLING PATCHED OBJECTS INTO $LPMAKE_PATCHED_DIR${reset}"
-	make $LPMAKEFILE install				\
+	make $LPMAKEFILE $JOBS_MAKE install			\
 		"$destdir=$LPMAKE_PATCHED_DIR"			\
 		>$MAKE_OUTPUT 2>&1
 }
@@ -140,15 +145,35 @@ build_kpatches() {
 
 		test -n "$buildid" || continue
 
+		if [ ! -z ${build_id} ];then
+		    buildid=${build_id}
+		fi
+
 		chmod u+w "${origexec}" "${patchedexec}"
 		$KPATCH_PATH/kpatch_strip --strip "${patchedexec}" \
 			"${patchedexec}.stripped" >/dev/null
+		if [ $? -ne 0 ];then
+			echo "Failed to do stripped."
+			exit 1
+		fi
 		$KPATCH_PATH/kpatch_strip --rel-fixup "$origexec" \
 			"${patchedexec}.stripped" || continue
+		if [ $? -ne 0 ];then
+			echo "Failed to do relocation fixup."
+			exit 1
+		fi
 		/usr/bin/strip --strip-unneeded "${patchedexec}.stripped"
+		if [ $? -ne 0 ];then
+			echo "Failed to do stripped unneeded section."
+			exit 1
+		fi
 		$KPATCH_PATH/kpatch_strip --undo-link "$origexec" "${patchedexec}.stripped"
 		$KPATCH_PATH/kpatch_make -b "$buildid" -i "$patch_id" \
 			"${patchedexec}.stripped" -o "${patchedexec}.kpatch"
+		if [ $? -ne 0 ];then
+			echo "Failed to make patch."
+			exit 1
+		fi
 		cp "${patchedexec}.kpatch" "${LPMAKE_PATCHROOT}"/${buildid}.kpatch
 		echo "patch for ${origexec} is in ${LPMAKE_PATCHROOT}/${buildid}.kpatch"
 	done
@@ -157,7 +182,7 @@ build_kpatches() {
 main() {
 	PROG_NAME=$(basename $0)
 
-	TEMP=$(getopt -o s:ucd:i:j: --long srcdir:,update,clean,destdir:,id:,jobs: -n ${PROG_NAME} -- "$@" || usage 1)
+	TEMP=$(getopt -o s:ucd:i:b:j: --long srcdir:,update,clean,destdir:,id:,buildid:,jobs: -n ${PROG_NAME} -- "$@" || usage 1)
 	eval set -- "$TEMP"
 
 	destdir="DESTDIR"
@@ -184,6 +209,11 @@ main() {
 		-i|--id)
 			shift
 			patch_id="$1"
+			shift
+			;;
+		-b|--buildid)
+			shift
+			build_id="$1"
 			shift
 			;;
 		-j|--jobs)

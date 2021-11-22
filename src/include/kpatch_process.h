@@ -1,9 +1,18 @@
 /******************************************************************************
+ * 2021.10.11 - kpatch: fix code checker warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.11 - kpatch: rename uname to buildid
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
  * 2021.09.23 - libcare-ctl: implement applied patch list
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #ifndef __KPATCH_PROCESS__
@@ -77,7 +86,7 @@ struct object_file {
 	struct list_head vma;
 
 	/* Object's Build-ID */
-	char buildid[41];
+	char buildid[KPATCH_BUILDID_LEN + 1];
 
 	/* Patch information */
 	struct kpatch_info *info;
@@ -124,6 +133,9 @@ struct object_file {
 
 	/* Is it an ELF or a mmap'ed regular file? */
 	unsigned int is_elf:1;
+
+	/* Is it an unpatch target */
+	unsigned int is_unpatch_target_elf:1;
 };
 
 struct kpatch_process {
@@ -230,13 +242,12 @@ struct vm_hole *next_hole(struct vm_hole *hole, struct list_head *head);
 struct vm_hole *prev_hole(struct vm_hole *hole, struct list_head *head);
 unsigned long hole_size(struct vm_hole *hole);
 
-unsigned long random_from_range(unsigned long min, unsigned long max);
 unsigned long object_find_patch_region(struct object_file *obj,
 			 size_t memsize,
 			 struct vm_hole **hole);
 
-int kpatch_object_check_duplicate_id(struct object_file *o, const char *patch_id);
+struct object_file *
+kpatch_object_get_applied_patch_by_id(struct object_file *o, const char *patch_id);
 int kpatch_object_add_applied_patch(struct object_file *o, struct object_file *new);
-struct object_file * kpatch_object_find_applied_patch(struct object_file *o, const char *patch_id);
 
 #endif /* ifndef __KPATCH_PROCESS__ */

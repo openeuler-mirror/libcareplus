@@ -1,3 +1,23 @@
+/******************************************************************************
+ * 2021.10.13 - codeDex: fix uninitialing buf
+ * Huawei Technologies Co., Ltd. <oscar.zhangbo@huawei.com>
+ *
+ * 2021.10.13 - codeDex: fix wrong return type
+ * Huawei Technologies Co., Ltd. <oscar.zhangbo@huawei.com>
+ *
+ * 2021.10.13 - ptrace: check pread return value
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.13 - unpatch: enhance error handling and log records of object_unapply_patch
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
+ * 2021.10.12 - misc: add -D_FORTIFY_SOURCE=2 and fix return check
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -29,7 +49,11 @@ kpatch_process_mem_read(kpatch_process_t *proc,
 			void *dst,
 			size_t size)
 {
-	return pread(proc->memfd, dst, size, (off_t)src);
+	ssize_t r;
+
+	r = pread(proc->memfd, dst, size, (off_t)src);
+
+	return r != size ? -1 : 0;
 }
 
 static int
@@ -120,13 +144,13 @@ int kpatch_process_mem_iter_peek(struct process_mem_iter *iter,
 	if (iter->buflen == 0 ||
 	    remote_addr < iter->base ||
 	    remote_addr + size > iter->base + iter->buflen) {
-		int ret;
+		size_t ret;
 
 		iter->base = remote_addr;
-		ret = kpatch_process_mem_read(iter->proc,
-					      remote_addr,
-					      iter->buffer,
-					      iter->buffer_size);
+		ret = pread(iter->proc->memfd,
+			    iter->buffer,
+			    iter->buffer_size,
+			    (off_t)remote_addr);
 		if (ret < size)
 			return -1;
 		iter->buflen = ret;
@@ -215,7 +239,7 @@ struct breakpoint {
 int
 kpatch_ptrace_execute_until(kpatch_process_t *proc,
 			    int timeout_msec,
-			    int flags)
+			    unsigned int flags)
 {
 	int ret = 0, errno_save;
 	char break_code[] = BREAK_INSN;
@@ -415,7 +439,7 @@ poke_back:
 
 int
 wait_for_stop(struct kpatch_ptrace_ctx *pctx,
-	      void *data)
+	      const void *data)
 {
 	int ret, status = 0, pid = (int)(uintptr_t)data ?: pctx->pid;
 	kpdebug("wait_for_stop(pctx->pid=%d, pid=%d)\n", pctx->pid, pid);
@@ -477,9 +501,12 @@ get_threadgroup_id(int tid)
 		return -1;
 
 	while (!feof(fh)) {
-		if (fscanf(fh, "Tgid: %d", &pid) == 1)
+		if (fscanf(fh, "Tgid: %d", &pid) == 1) {
 			break;
-		fgets(buf, sizeof(buf), fh);
+		}
+		if (fgets(buf, sizeof(buf), fh) == NULL) {
+			break;
+		}
 	}
 
 	fclose(fh);
@@ -561,21 +588,24 @@ kpatch_process_memcpy(kpatch_process_t *proc,
 
 	buf = malloc(size);
 	if (buf == NULL) {
-		kpdebug("FAIL\n");
+		kplogerror("Failed to malloc buffer\n");
 		return -1;
 	}
+	memset(buf, 0, size);
 
 	ret = kpatch_process_mem_read(proc, src, buf, size);
-	if (ret > 0)
-		ret = kpatch_process_mem_write(proc, buf, dst, size);
+	if (ret < 0) {
+		kplogerror("Failed to read process memory (ret = %d)\n", ret);
+		goto cleanup;
+	}
 
-	if (ret < 0)
-		kpdebug("FAIL\n");
-	else
-		kpdebug("OK\n");
+	ret = kpatch_process_mem_write(proc, buf, dst, size);
+	if (ret < 0) {
+		kplogerror("Failed to write process memory\n");
+	}
 
+cleanup:
 	free(buf);
-
 	return ret;
 }
 

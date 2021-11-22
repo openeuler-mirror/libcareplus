@@ -1,3 +1,17 @@
+/******************************************************************************
+ * 2021.10.11 - kpatch_ptrace: fix x86 compile warning
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - remove deprecated code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 #include <stdlib.h>
 #include <errno.h>
 #include <stdio.h>
@@ -32,7 +46,8 @@
 int
 kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 {
-	int ret, pid = 0;
+	int ret = 0;
+	int pid = 0;
 	struct kpatch_ptrace_ctx *pctx, *ptmp, *execve_pctx = NULL;
 	long rv;
 
@@ -56,7 +71,7 @@ kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 	/* Send a message to our `execve` wrapper so it will continue
 	 * execution
 	 */
-	ret = send(proc->send_fd, &ret, sizeof(ret), 0);
+	ret = send(proc->send_fd, &ret, sizeof(int), 0);
 	if (ret < 0) {
 		kplogerror("send failed\n");
 		return ret;
@@ -185,7 +200,6 @@ int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 		unsigned long *res)
 {
 	struct user_regs_struct regs;
-
 	unsigned char syscall[] = {
 		0x01, 0x00, 0x00, 0xd4, //0xd4000001 svc #0  = syscall
 		0xa0, 0x00, 0x20, 0xd4, //0xd42000a0 brk #5  = int3
@@ -208,66 +222,18 @@ int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 	return ret;
 }
 
-int kpatch_arch_prctl_remote(struct kpatch_ptrace_ctx *pctx, int code, unsigned long *addr)
-{
-	struct user_regs_struct regs;
-	struct iovec regs_iov;
-	regs_iov.iov_base = &regs;
-	regs_iov.iov_len = sizeof(regs);
-
-	unsigned long res, sp;
-	int ret;
-
-	kpdebug("arch_prctl_remote: %d, %p\n", code, addr);
-	ret = ptrace(PTRACE_GETREGSET, pctx->pid, (void*)NT_PRSTATUS, (void*)&regs_iov);
-	if (ret < 0) {
-		kpdebug("FAIL. Can't get regs - %s\n", strerror(errno));
-		return -1;
-	}
-	ret = kpatch_process_mem_read(pctx->proc,
-				      regs.sp,
-				      &sp,
-				      sizeof(sp));
-	if (ret < 0) {
-		kplogerror("can't peek original stack data\n");
-		return -1;
-	}
-	//ret = kpatch_arch_syscall_remote(pctx, __NR_arch_prctl, code, regs.sp, 0, 0, 0, 0, &res);
-	if (ret < 0)
-		goto poke;
-	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {
-		errno = -(long)res;
-		ret = -1;
-		goto poke;
-	}
-	ret = kpatch_process_mem_read(pctx->proc,
-				      regs.sp,
-				      &res,
-				      sizeof(res));
-	if (ret < 0)
-		kplogerror("can't peek new stack data\n");
-
-poke:
-	if (kpatch_process_mem_write(pctx->proc,
-				     &sp,
-				     regs.sp,
-				     sizeof(sp)))
-		kplogerror("can't poke orig stack data\n");
-	*addr = res;
-	return ret;
-}
-
 int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
                 unsigned long *addr)
 {
     struct user_regs_struct regs;
-
     unsigned char callrax[] = {
         0x00, 0x01, 0x3f, 0xd6, // blr x8
         0xa0, 0x00, 0x20, 0xd4, // brk #5
     };
     int ret;
+
     kpdebug("Executing callrax %lx (pid %d)\n", *addr, pctx->pid);
+    memset(&regs, 0, sizeof(struct user_regs_struct));
     regs.regs[8] = *addr;
 
     ret = kpatch_execute_remote(pctx, callrax, sizeof(callrax), &regs);
@@ -282,9 +248,8 @@ kpatch_arch_execute_remote_func(struct kpatch_ptrace_ctx *pctx,
 			   const unsigned char *code,
 			   size_t codelen,
 			   struct user_regs_struct *pregs,
-			   int (*func)(struct kpatch_ptrace_ctx *pctx,
-				       void *data),
-			   void *data)
+			   int (*func)(struct kpatch_ptrace_ctx *pctx, const void *data),
+			   const void *data)
 {
 	struct user_regs_struct orig_regs, regs;
 	struct iovec orig_regs_iov, regs_iov;

@@ -72,7 +72,7 @@ kill_reap() {
 }
 
 libcare_ctl() {
-	$TIME $LIBCARE_CLIENT $SOCKPATH "$@"
+	time $LIBCARE_CLIENT $SOCKPATH "$@"
 }
 
 grep_tail() {
@@ -83,7 +83,7 @@ grep_tail() {
 libcare_server_init() {
 	SOCKPATH=$(mktemp --tmpdir -d)/test.sock
 	SERVER_LOG=$(mktemp --tmpdir)
-	stdbuf -o 0 $LIBCARE_CTL -v server $SOCKPATH \
+	stdbuf -o 0 $LIBCARE_SERVER -v $SOCKPATH \
 		>$SERVER_LOG 2>&1 </dev/null & :
 	SERVER_PID=$!
 	sleep 1
@@ -222,7 +222,7 @@ test_unpatch_files() {
 	cat ${outfile}_patched
 
 	echo "============unpatching===============" >>$logfile
-	libcare_ctl unpatch-user -p $pid \
+	libcare_ctl unpatch-user -p $pid -i 0001 \
 		>>$logfile 2>&1 || :
 
 	sleep 2
@@ -530,10 +530,9 @@ env_init() {
 	TESTDIR=$(xrealpath $(dirname $0))
 	KPTOOLS=${KPTOOLS-$TESTDIR/../src}
 	LIBCARE_CTL=$KPTOOLS/libcare-ctl
+	LIBCARE_SERVER=$KPTOOLS/libcare-server
 	LIBCARE_CLIENT=$KPTOOLS/libcare-client
 	STAGE=${STAGE-$TESTDIR/stage/tmp}
-
-	TIME=$(which time)
 }
 
 main() {

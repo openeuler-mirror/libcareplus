@@ -1,12 +1,37 @@
 /******************************************************************************
+ * 2021.10.13 - unpatch: enhance error handling and log records of object_unapply_patch
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
+ *
+ * 2021.10.12 - process: add a flag to mark unpatch target elf
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.12 - patch: correct time comsume print
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.08 - ptrace/process/patch: fix some bad code problem
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - process_unpatch: adapt return value
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
+ *
+ * 2021.10.07 - time: add frozen time count for patch/unpatch
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
  * 2021.09.23 - libcare-ctl: introduce patch-id
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-12
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  *
  * 2021.09.23 - libcare-ctl: implement applied patch list
- * Huawei Technologies Co., Ltd. <wanghao232@huawei.com> - 0.1.4-11
+ * Huawei Technologies Co., Ltd. <wanghao232@huawei.com>
  ******************************************************************************/
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
 #include <unistd.h>
@@ -28,7 +53,9 @@
 #include "include/kpatch_ptrace.h"
 #include "include/list.h"
 #include "include/kpatch_log.h"
+#include <sys/time.h>
 
+#define GET_MICROSECONDS(a, b) ((a.tv_sec - b.tv_sec) * 1000000 + (a.tv_usec - b.tv_usec))
 
 static inline int
 is_addr_in_info(unsigned long addr,
@@ -302,6 +329,7 @@ static int
 object_apply_patch(struct object_file *o)
 {
 	struct kpatch_file *kp;
+	struct object_file *applied_patch;
 	size_t sz, i;
 	int undef, ret;
 
@@ -314,7 +342,9 @@ object_apply_patch(struct object_file *o)
 		return -1;
 	}
 
-	if (kpatch_object_check_duplicate_id(o, (const char *)o->kpfile.patch->id)) {
+	applied_patch = kpatch_object_get_applied_patch_by_id(o,
+		(const char *)o->kpfile.patch->id);
+	if (applied_patch) {
 		kplogerror("A patch with patch-id(%s) is already applied by %s",
 			   o->kpfile.patch->id, o->name);
 		return -1;
@@ -330,6 +360,9 @@ object_apply_patch(struct object_file *o)
 	undef = kpatch_count_undefined(o);
 	if (undef) {
 		o->jmp_table = kpatch_new_jmp_table(undef);
+		if (o->jmp_table == NULL) {
+			return -1;
+		}
 		kp->jmp_offset = sz;
 		kpinfo("Jump table %d bytes for %d syms at offset 0x%x\n",
 		       o->jmp_table->size, undef, kp->jmp_offset);
@@ -419,8 +452,11 @@ unpatch:
 int process_patch(int pid, void *_data)
 {
 	int ret;
+	bool is_calc_time = false;
 	kpatch_process_t _proc, *proc = &_proc;
 	struct patch_data *data = _data;
+	struct timeval start_tv, end_tv;
+	unsigned long frozen_time;
 
 	kpatch_storage_t *storage = data->storage;
 	int is_just_started = data->is_just_started;
@@ -470,6 +506,8 @@ int process_patch(int pid, void *_data)
 	if (ret <= 0)
 		goto out_free;
 
+	is_calc_time = true;
+	gettimeofday(&start_tv, NULL);
 	/* Finally, attach to process */
 	ret = kpatch_process_attach(proc);
 	if (ret < 0)
@@ -488,9 +526,13 @@ int process_patch(int pid, void *_data)
 	if (storage_execute_after_script(storage, proc) < 0)
 		kperr("after script failed\n");
 
-
 out_free:
 	kpatch_process_free(proc);
+	if (is_calc_time) {
+		gettimeofday(&end_tv, NULL);
+		frozen_time = GET_MICROSECONDS(end_tv, start_tv);
+		kpinfo("PID '%d' process patch frozen_time is %ld microsecond\n", pid, frozen_time);
+	}
 
 out:
 	if (ret < 0) {
@@ -529,7 +571,7 @@ object_find_applied_patch_info(struct object_file *o)
 	else
 		return -1;
 
-	applied_patch = kpatch_object_find_applied_patch(o, patch_id);
+	applied_patch = kpatch_object_get_applied_patch_by_id(o, patch_id);
 	if (!applied_patch) {
 		fprintf(stderr, "Failed to find target applied patch!\n");
 		return -1;
@@ -551,6 +593,12 @@ object_find_applied_patch_info(struct object_file *o)
 		if (o->ninfo == nalloc) {
 			nalloc += 16;
 			o->info = realloc(o->info, nalloc * sizeof(tmpinfo));
+			if (o->info == NULL) {
+				kperr("Failed to realloc o->info!\n");
+				o->ninfo = 0;
+				ret = -1;
+				goto err;
+			}
 		}
 
 		o->info[o->ninfo] = tmpinfo;
@@ -584,7 +632,6 @@ object_unapply_patch(struct object_file *o, int check_flag)
 		return ret;
 
 	orig_code_addr = o->kpta + o->kpfile.patch->user_undo;
-
 	for (i = 0; i < o->ninfo; i++) {
 		if (is_new_func(&o->info[i]))
 			continue;
@@ -592,21 +639,30 @@ object_unapply_patch(struct object_file *o, int check_flag)
 		if (check_flag && !(o->info[i].flags & PATCH_APPLIED))
 			continue;
 
+		kpinfo("restore origin code from 0x%lx to 0x%lx\n",
+				orig_code_addr + i * HUNK_SIZE, o->info[i].daddr);
 		ret = kpatch_process_memcpy(o->proc,
 					    o->info[i].daddr,
 					    orig_code_addr + i * HUNK_SIZE,
 					    HUNK_SIZE);
 		/* XXX(pboldin) We are in deep trouble here, handle it
 		 * by restoring the patch back */
-		if (ret < 0)
+		if (ret < 0) {
+			kplogerror("Failed to restore origin code momery\n");
 			return ret;
+		}
 	}
 
+	/* unmap allocated patch's vma */
+	kpinfo("munmap kpatch memory from 0x%lx\n", o->kpta);
 	ret = kpatch_munmap_remote(proc2pctx(o->proc),
 				   o->kpta,
 				   o->kpfile.size);
 
-	return ret;
+	if (ret < 0)
+		return ret;
+
+	return 1;
 }
 
 static int
@@ -621,6 +677,9 @@ kpatch_should_unapply_patch(struct object_file *o,
 		return 1;
 
 	bid = kpatch_get_buildid(o);
+	if (bid == NULL) {
+		return 0;
+	}
 
 	for (i = 0; i < nbuildids; i++) {
 		if (!strcmp(bid, buildids[i]) ||
@@ -641,12 +700,9 @@ kpatch_unapply_patches(kpatch_process_t *proc,
 	int ret;
 	size_t unapplied = 0;
 
-	ret = kpatch_process_associate_patches(proc, patch_id);
-	if (ret < 0)
-		return ret;
-
 	list_for_each_entry(o, &proc->objs, list) {
-		if (o->is_patch || o->num_applied_patch == 0)
+		if (o->is_patch || o->num_applied_patch == 0 ||
+		    !o->is_unpatch_target_elf)
 			continue;
 
 		if (!kpatch_should_unapply_patch(o, buildids, nbuildids))
@@ -664,42 +720,57 @@ kpatch_unapply_patches(kpatch_process_t *proc,
 int process_unpatch(int pid, void *_data)
 {
 	int ret;
+	bool is_calc_time = 0;
 	kpatch_process_t _proc, *proc = &_proc;
 	struct unpatch_data *data = _data;
 	char **buildids = data->buildids;
 	int nbuildids = data->nbuildids;
 	const char *patch_id = data->patch_id;
+	struct timeval start_tv, end_tv;
+	unsigned long frozen_time;
 
 	ret = kpatch_process_init(proc, pid, /* start */ 0, /* send_fd */ -1);
-	if (ret < 0)
-		return -1;
+	if (ret < 0) {
+		kperr("cannot init process %d\n", pid);
+		goto out;
+	}
 
 	kpatch_process_print_short(proc);
 
+	is_calc_time = 1;
+	gettimeofday(&start_tv, NULL);
 	ret = kpatch_process_attach(proc);
 	if (ret < 0)
-		goto out;
+		goto out_free;
 
 	ret = kpatch_process_map_object_files(proc, patch_id);
 	if (ret < 0)
-		goto out;
+		goto out_free;
 
 	ret = kpatch_coroutines_find(proc);
 	if (ret < 0)
-		goto out;
+		goto out_free;
 
 	ret = kpatch_unapply_patches(proc, buildids, nbuildids, patch_id);
 
-out:
+out_free:
 	kpatch_process_free(proc);
+	if (is_calc_time) {
+		gettimeofday(&end_tv, NULL);
+		frozen_time = GET_MICROSECONDS(end_tv, start_tv);
+		kpinfo("PID '%d' process unpatch frozen_time is %ld microsecond\n", pid, frozen_time);
+	}
 
-	if (ret < 0)
+out:
+	if (ret < 0) {
 		printf("Failed to cancel patches for %d\n", pid);
-	else if (ret == 0)
+		return ret;
+	} else if (ret == 0) {
 		printf("No patch(es) cancellable from PID '%d' were found\n", pid);
-	else
+	} else {
 		printf("%d patch hunk(s) were successfully cancelled from PID '%d'\n", ret, pid);
+	}
 
-	return ret;
+	return 0;
 }
 

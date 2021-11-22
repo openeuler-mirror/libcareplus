@@ -1,3 +1,14 @@
+/******************************************************************************
+ * 2021.10.12 - misc: add -D_FORTIFY_SOURCE=2 and fix return check
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.11 - return: make every return properly other than direct-exit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
 
 #include <stdlib.h>
 #include <string.h>
@@ -48,6 +59,8 @@ int kpatch_objinfo_load(kpatch_objinfo *oi)
 		const char *secname;
 		GElf_Shdr shdr;
 		Elf_Scn *scn = NULL;
+
+		memset(&shdr, 0, sizeof(GElf_Shdr));
 
 		scn = kpatch_objinfo_getshdr(oi, i, &shdr);
 		if (scn == NULL)
@@ -153,20 +166,21 @@ kpatch_objinfo_load_tls_reladyn(kpatch_objinfo *oi)
 	Elf64_Rela *rela;
 	Elf_Scn *scn_rela_dyn;
 	Elf_Data *data_rela_dyn;
-	size_t nrela, i, nlast;
+	size_t nrela, i;
+	size_t nlast = -1;
 
 	if (oi->tlsreladyn != NULL)
 		return 0;
 
 	scn_rela_dyn = kpatch_objinfo_find_scn_by_name(oi, ".rela.dyn", NULL);
 	if (scn_rela_dyn == NULL) {
-		kpfatalerror("unable to find .rela.dyn");
+		kperr("unable to find .rela.dyn");
 		return -1;
 	}
 
 	data_rela_dyn = elf_getdata(scn_rela_dyn, NULL);
 	if (data_rela_dyn == NULL || data_rela_dyn->d_buf == NULL) {
-		kpfatalerror("no data for .rela.dyn");
+		kperr("no data for .rela.dyn");
 		return -1;
 	}
 
@@ -185,6 +199,11 @@ kpatch_objinfo_load_tls_reladyn(kpatch_objinfo *oi)
 	for (i = 0; i < nrela; rela++, i++) {
 		if (kpatch_is_tls_rela(rela))
 			nlast = i;
+	}
+
+	if (nlast == -1) {
+		kperr("no tls symbol in .rela.dyn");
+		return -1;
 	}
 
 	oi->ntlsreladyn = nlast + 1;
