@@ -120,6 +120,7 @@ kpatch_process_mem_iter_init(kpatch_process_t *proc)
 	if (!iter)
 		return NULL;
 
+	memset(iter, 0, sizeof(*iter) + pagesize);
 	iter->proc = proc;
 	iter->buflen = 0;
 
@@ -161,8 +162,8 @@ int kpatch_process_mem_iter_peek(struct process_mem_iter *iter,
 }
 
 int kpatch_process_mem_iter_peek_ulong(struct process_mem_iter *iter,
-				       unsigned long *dst,
-				       unsigned long remote_addr)
+									   unsigned long *dst,
+									   unsigned long remote_addr)
 {
 	return kpatch_process_mem_iter_peek(iter, dst, sizeof(*dst), remote_addr);
 }
@@ -176,7 +177,7 @@ int kpatch_ptrace_get_entry_point(struct kpatch_ptrace_ctx *pctx,
 
 	kpdebug("Looking for entry point...");
 
-	sprintf(path, "/proc/%d/auxv", pctx->pid);
+	snprintf(path, sizeof(path), "/proc/%d/auxv", pctx->pid);
 	fd = open(path, O_RDONLY);
 	if (fd == -1) {
 		kplogerror("can't open %s\n", path);
@@ -441,7 +442,7 @@ int
 wait_for_stop(struct kpatch_ptrace_ctx *pctx,
 	      const void *data)
 {
-	int ret, status = 0, pid = (int)(uintptr_t)data ?: pctx->pid;
+	int ret, status = 0, pid = (int)(uintptr_t)data ? : pctx->pid;
 	kpdebug("wait_for_stop(pctx->pid=%d, pid=%d)\n", pctx->pid, pid);
 
 	while (1) {
@@ -479,11 +480,11 @@ kpatch_execute_remote(struct kpatch_ptrace_ctx *pctx,
 		      struct user_regs_struct *pregs)
 {
 	return kpatch_arch_execute_remote_func(pctx,
-					  code,
-					  codelen,
-					  pregs,
-					  wait_for_stop,
-					  NULL);
+					       code,
+					       codelen,
+					       pregs,
+					       wait_for_stop,
+					       NULL);
 }
 
 /* FIXME(pboldin) buf might be too small */
@@ -494,7 +495,7 @@ get_threadgroup_id(int tid)
 	char buf[256];
 	int pid = -1;
 
-	sprintf(buf, "/proc/%d/status", tid);
+	snprintf(buf, sizeof(buf), "/proc/%d/status", tid);
 
 	fh = fopen(buf, "r");
 	if (fh == NULL)
@@ -523,12 +524,12 @@ kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 		   off_t offset)
 {
 	int ret;
-	unsigned long res;
+	unsigned long res = 0;
 
 	kpdebug("mmap_remote: 0x%lx+%lx, %x, %x, %d, %lx\n", addr, length,
 		prot, flags, fd, offset);
 	ret = kpatch_arch_syscall_remote(pctx, __NR_mmap, (unsigned long)addr,
-				    length, prot, flags, fd, offset, &res);
+					 length, prot, flags, fd, offset, &res);
 	if (ret < 0)
 		return 0;
 	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {
@@ -536,6 +537,28 @@ kpatch_mmap_remote(struct kpatch_ptrace_ctx *pctx,
 		return 0;
 	}
 	return res;
+}
+
+int
+kpatch_mprotect_remote(struct kpatch_ptrace_ctx *pctx,
+		       unsigned long addr,
+		       size_t length,
+		       int prot)
+{
+	int ret;
+	unsigned long res;
+
+	kpdebug("mprotect_remote: 0x%lx+%lx\n", addr, length);
+	ret = kpatch_arch_syscall_remote(pctx, __NR_mprotect, (unsigned long)addr,
+					 length, prot, 0, 0, 0, &res);
+	if (ret < 0)
+		return -1;
+	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {
+		errno = -(long)res;
+		return -1;
+	}
+
+	return 0;
 }
 
 int kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
@@ -547,7 +570,7 @@ int kpatch_munmap_remote(struct kpatch_ptrace_ctx *pctx,
 
 	kpdebug("munmap_remote: 0x%lx+%lx\n", addr, length);
 	ret = kpatch_arch_syscall_remote(pctx, __NR_munmap, (unsigned long)addr,
-				    length, 0, 0, 0, 0, &res);
+					 length, 0, 0, 0, 0, &res);
 	if (ret < 0)
 		return -1;
 	if (ret == 0 && res >= (unsigned long)-MAX_ERRNO) {

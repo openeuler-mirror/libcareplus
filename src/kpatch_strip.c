@@ -135,7 +135,7 @@ static int kpatch_strip(Elf *elfin, Elf *elfout)
 {
 	GElf_Ehdr ehin, ehout;
 	Elf_Scn *scnin = NULL, *scnout = NULL;
-	Elf_Data *dataout;
+	Elf_Data *dataout, *tmp;
 	GElf_Shdr shin, shout;
 	Elf64_Off off = -1ull;
 	size_t shstridx;
@@ -202,7 +202,12 @@ static int kpatch_strip(Elf *elfin, Elf *elfout)
 				kperr("Failed to do elf_newdata");
 				return -1;
 			}
-			*dataout = *elf_getdata(scnin, NULL);
+			tmp = elf_getdata(scnin, NULL);
+			if (tmp == NULL) {
+				kperr("Failed to do elf_getdata");
+				return -1;
+			}
+			*dataout = *tmp;
 			off += shin.sh_size;
 			if (!strcmp(scnname, ".kpatch.info")) {
 				offset = process_kpatch_info(scnout, &shout);
@@ -407,7 +412,7 @@ kpatch_fixup_rela_one(kpatch_objinfo *origbin,
 		rv = kpatch_arch_fixup_rela_update_tls(origbin, patch, rel,
 						       sym, sh_text, text);
 		if (rv < 0)
-			kperr("Faileed to do kpatch_fixup_rela_update_tls");
+			kperr("Failed to do kpatch_fixup_rela_update_tls");
 
 		return rv;
 	}

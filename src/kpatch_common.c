@@ -42,14 +42,20 @@ int kpatch_open_fd(int fd, struct kp_file *kpatch)
 
 	kpdebug("OK\nQuerying file size...");
 	if (fstat(fd, &st) == -1) {
-		kpdebug("FAIL: %s\n", strerror(errno));
+		kperr("FSTAT FAIL: %s\n", strerror(errno));
 		return -1;
 	}
+
 	kpdebug("OK\nMapping patch file...");
+	if (st.st_size < sizeof(struct kpatch_file)) {
+		kperr("storage size(%jdB) is less than kaptch header size(%zuB)",
+		      (intmax_t)st.st_size, sizeof(struct kpatch_file));
+		return -1;
+	}
 	kpatch->size = st.st_size;
 	kpatch->patch = mmap(NULL, st.st_size, PROT_READ|PROT_WRITE, MAP_PRIVATE, fd, 0);
 	if (kpatch->patch == MAP_FAILED) {
-		kpdebug("FAIL: %s\n", strerror(errno));
+		kperr("MMAP FAIL: %s\n", strerror(errno));
 		return -1;
 	}
 

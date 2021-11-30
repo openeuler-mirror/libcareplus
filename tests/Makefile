@@ -2,6 +2,12 @@ MAKEFLAGS += --no-builtin-rules
 
 SUBDIRS := $(patsubst %/desc,%,$(wildcard */desc))
 
+AARCH64_NO_SUPPORT_TESTS = fail_coro fail_coro_listed
+ARCH = $(shell uname -m)
+ifeq ($(ARCH), aarch64)
+	SUBDIRS := $(filter-out $(AARCH64_NO_SUPPORT_TESTS), $(SUBDIRS))
+endif
+
 KPATCH_PATH:=$(CURDIR)/../src
 export KPATCH_PATH
 

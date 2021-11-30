@@ -44,6 +44,11 @@ elf_object_peek_phdr(struct object_file *o)
 					     sizeof(o->ehdr));
 		if (rv < 0)
 			return rv;
+
+		if (o->ehdr.e_phnum <= 0) {
+			kperr("Wrong ELF header: ehdr.e_phnum: %d\n", o->ehdr.e_phnum);
+			return -1;
+		}
 	}
 
 	if (o->phdr == NULL) {
@@ -72,11 +77,19 @@ kpatch_elf_object_set_ehdr(struct object_file *o,
 
 
 	if (memcmp(buf, ELFMAG, SELFMAG)) {
-		kpdebug("magic(%s) = %x%x%x%x\n", o->name, buf[0], buf[1], buf[2], buf[3]);
+		kperr("magic(%s) = %x%x%x%x\n", o->name, buf[0], buf[1], buf[2], buf[3]);
 		return -1;
 	}
 
 	memcpy(&o->ehdr, buf, sizeof(o->ehdr));
+
+	/* check the metadata in o->ehdr */
+	if (o->ehdr.e_phentsize != sizeof(Elf64_Phdr) ||
+			o->ehdr.e_phnum <= 0) {
+		kperr("Wrong ELF header: ehdr.e_phentsize: %d, ehdr.e_phnum: %d\n",
+				o->ehdr.e_phentsize, o->ehdr.e_phnum);
+		return -1;
+	}
 
 	if (bufsize < o->ehdr.e_phoff + o->ehdr.e_phentsize * o->ehdr.e_phnum)
 		return 0;
@@ -132,7 +145,7 @@ elf_object_look_for_buildid(struct object_file *o)
 			continue;
 
 		data += nhdr->n_namesz;
-		for (i = 0; i < 40; i+=2, data++)
+		for (i = 0; i < KPATCH_BUILDID_LEN; i+=2, data++)
 			sprintf(o->buildid + i, "%02hhx", *data);
 
 		kpdebug("read '%s'\n", o->buildid);
@@ -631,6 +644,7 @@ elf_object_load_dynsym(struct object_file *o)
 out_free:
 	if (rv < 0) {
 		free(buffer);
+		o->dynsyms = NULL;
 	}
 	free(dynamics);
 
@@ -810,7 +824,7 @@ int kpatch_resolve(struct object_file *o)
 			 * proper offet in *target process* region of memory
 			 */
 			s->sh_addr = (unsigned long)o->kpta +
-				o->kpfile.patch->kpatch_offset + s->sh_offset;
+				o->kpfile.patch->elf_offset + s->sh_offset;
 		} else {
 			/*
 			 * We copy the `sh_addr`esses from the original binary
@@ -885,6 +899,7 @@ int kpatch_elf_load_kpatch_info(struct object_file *o)
 		GElf_Shdr *s = shdr + i;
 
 		if (!strcmp(secname(ehdr, s), ".kpatch.info")) {
+			o->info_offset = s->sh_offset;
 			o->info = (struct kpatch_info *)((void *)ehdr +
 							 s->sh_offset);
 			o->ninfo = s->sh_size / sizeof(struct kpatch_info);
@@ -893,6 +908,32 @@ int kpatch_elf_load_kpatch_info(struct object_file *o)
 		}
 	}
 
-	kpdebug("failed\n");
+	kperr("Failed to load kpatch info for %s", o->name);
 	return -1;
 }
+
+void
+kpatch_get_kpatch_data_offset(struct object_file *o)
+{
+	GElf_Ehdr *ehdr;
+	GElf_Shdr *shdr;
+	int i;
+
+	ehdr = (void *)o->kpfile.patch + o->kpfile.patch->kpatch_offset;
+	shdr = (void *)ehdr + ehdr->e_shoff;
+
+	kpdebug("Geting patch .kpatch.data offset '%s'...", o->name);
+	for (i = 1; i < ehdr->e_shnum; i++) {
+		GElf_Shdr *s = shdr + i;
+
+		if (!strcmp(secname(ehdr, s), ".kpatch.data")) {
+			o->data_offset = s->sh_offset;
+			kpdebug(".kpatch.data sh_offset: 0x%lx", s->sh_offset);
+			return;
+		}
+	}
+
+	kpdebug("%s object doesn't have the .kpatch.data section", o->name);
+	return;
+}
+

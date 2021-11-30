@@ -7,5 +7,5 @@
 -		print_greetings();
 +		print_greetings_patched();
  		for (i = 0; i < INT_MAX / 50; i++)
- 			asm ("pause");
+			sleep(1);
  	}

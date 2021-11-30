@@ -48,25 +48,34 @@ patch_file_verify(struct kp_file *kpfile)
 		      k->modulename);
 		return -1;
 	}
+
 	if (k->total_size > size) {
 		kperr("'%s' patch is invalid: Invalid size: %u/%ld.\n",
 		      k->modulename, k->total_size, size);
 		return -1;
 	}
+
+	if (k->kpatch_offset + sizeof(GElf_Ehdr) > size) {
+		kperr("'%s' patch is invalid: Invalid kpatch offset: %u\n",
+		      k->modulename, k->kpatch_offset);
+		return -1;
+	}
+
 	hdr = (void *)k + k->kpatch_offset;
 	if (memcmp(hdr->e_ident, ELFMAG, SELFMAG) ||
-			hdr->e_type != ET_REL ||
-			hdr->e_shentsize != sizeof(GElf_Shdr)) {
+	    hdr->e_type != ET_REL ||
+	    hdr->e_shentsize != sizeof(GElf_Shdr)) {
 		kperr("'%s' patch is invalid: Wrong ELF header or not ET_REL\n",
 		      k->modulename);
 		return -1;
 	}
+
 	kpdebug("OK\n");
 	return 1;
 }
 
 int storage_init(kpatch_storage_t *storage,
-	     const char *fname)
+				 const char *fname)
 {
 	int patch_fd = -1;
 	struct stat stat = { .st_mode = 0 };
@@ -77,11 +86,15 @@ int storage_init(kpatch_storage_t *storage,
 	}
 
 	patch_fd = open(fname, O_RDONLY | O_CLOEXEC);
-	if (patch_fd < 0)
-		goto out_err;
+	if (patch_fd < 0) {
+		kperr("cannot open storage '%s'\n", fname);
+		return -1;
+	}
 
-	if (fstat(patch_fd, &stat) < 0)
-	        goto out_close;
+	if (fstat(patch_fd, &stat) < 0) {
+		kperr("FSTAT FAIL: %s\n", strerror(errno));
+		goto out_close;
+	}
 
 	storage->patch_fd = patch_fd;
 	storage->is_patch_dir = S_ISDIR(stat.st_mode);
@@ -101,17 +114,18 @@ int storage_init(kpatch_storage_t *storage,
 			kpatch_close_file(&storage->patch.kpfile);
 			goto out_close;
 		}
-		strcpy(storage->patch.buildid, storage->patch.kpfile.patch->buildid);
+		strncpy(storage->patch.buildid,
+			storage->patch.kpfile.patch->buildid,
+			KPATCH_BUILDID_LEN);
+		storage->patch.buildid[KPATCH_BUILDID_LEN] = '\0';
 	}
 
 	storage->path = strdup(fname);
-
 	return 0;
 
 out_close:
 	close(patch_fd);
-out_err:
-	kplogerror("cannot open storage '%s'\n", fname);
+
 	return -1;
 }
 
@@ -209,7 +223,6 @@ storage_open_patch(kpatch_storage_t *storage,
 			patch->kpfile.patch->user_level = patch->patchlevel;
 			rv = PATCH_FOUND;
 		}
-
 	}
 
 	return rv;
@@ -230,7 +243,6 @@ storage_stat_patch(kpatch_storage_t *storage,
 		sprintf(fname, pathtemplates[i], buildid);
 
 		rv = fstatat(storage->patch_fd, fname, &buf, /* flags */ 0);
-
 		if (rv == 0) {
 			rv = PATCH_FOUND;
 			patch->kpfile.size = buf.st_size;
@@ -253,11 +265,8 @@ storage_stat_patch(kpatch_storage_t *storage,
 	return rv;
 }
 
-/*
- * TODO(pboldin) I duplicate a lot of code kernel has for filesystems already.
- * Should we avoid this caching at all?
- */
 #define ERR_PATCH ((struct kpatch_storage_patch *)1)
+
 static struct kpatch_storage_patch *
 storage_get_patch(kpatch_storage_t *storage, const char *buildid,
 		  int load)
@@ -441,7 +450,7 @@ int storage_lookup_patches(kpatch_storage_t *storage, kpatch_process_t *proc)
 		if (ret == PATCH_OPEN_ERROR) {
 			if (errno != ENOENT)
 				kplogerror("error finding patch for %s (%s)\n",
-					   o->name, bid);
+						   o->name, bid);
 			continue;
 		}
 
@@ -462,8 +471,8 @@ int storage_lookup_patches(kpatch_storage_t *storage, kpatch_process_t *proc)
 
 static int
 storage_execute_script(kpatch_storage_t *storage,
-		       kpatch_process_t *proc,
-		       const char *name)
+					   kpatch_process_t *proc,
+					   const char *name)
 {
 	int childpid, rv = 0, status;
 	char pidbuf[16], pathbuf[PATH_MAX];

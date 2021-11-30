@@ -11,7 +11,7 @@ struct kpatch_storage_patch {
 	struct kp_file kpfile;
 
 	/* Build id kept here for negative caching */
-	char buildid[41];
+	char buildid[KPATCH_BUILDID_LEN + 1];
 
 	/* Patch level */
 	int patchlevel;
@@ -46,7 +46,7 @@ struct kpatch_storage {
 typedef struct kpatch_storage kpatch_storage_t;
 
 int storage_init(kpatch_storage_t *storage,
-	     const char *fname);
+				 const char *fname);
 void storage_free(kpatch_storage_t *storage);
 
 enum {

@@ -124,11 +124,15 @@ kpatch_arch_ptrace_kickstart_execve_wrapper(kpatch_process_t *proc)
 
 	/* Suddenly, /proc/pid/mem gets invalidated */
 	{
-		char buf[128];
+		char buf[sizeof("/proc/0123456789/mem")];
 		close(proc->memfd);
 
 		snprintf(buf, sizeof(buf), "/proc/%d/mem", proc->pid);
 		proc->memfd = open(buf, O_RDWR);
+		if (proc->memfd < 0) {
+			kplogerror("Failed to open proc mem\n");
+			return -1;
+		}
 	}
 
 	kpdebug("...done\n");
@@ -195,9 +199,9 @@ wait_for_mmap(struct kpatch_ptrace_ctx *pctx,
 }
 
 int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
-		unsigned long arg1, unsigned long arg2, unsigned long arg3,
-		unsigned long arg4, unsigned long arg5, unsigned long arg6,
-		unsigned long *res)
+			       unsigned long arg1, unsigned long arg2, unsigned long arg3,
+			       unsigned long arg4, unsigned long arg5, unsigned long arg6,
+			       unsigned long *res)
 {
 	struct user_regs_struct regs;
 	unsigned char syscall[] = {
@@ -223,7 +227,7 @@ int kpatch_arch_syscall_remote(struct kpatch_ptrace_ctx *pctx, int nr,
 }
 
 int kpatch_arch_ptrace_resolve_ifunc(struct kpatch_ptrace_ctx *pctx,
-                unsigned long *addr)
+                                     unsigned long *addr)
 {
     struct user_regs_struct regs;
     unsigned char callrax[] = {
@@ -330,7 +334,7 @@ poke_back:
 }
 
 void copy_regs(struct user_regs_struct *dst,
-		      struct user_regs_struct *src)
+	       struct user_regs_struct *src)
 {
 #define COPY_REG(x) dst->x = src->x
        COPY_REG(regs[0]);
@@ -359,8 +363,8 @@ void copy_regs(struct user_regs_struct *dst,
 
 int
 kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
-		      struct timespec *timeout,
-		      const sigset_t *sigset)
+			   struct timespec *timeout,
+			   const sigset_t *sigset)
 {
 	struct kpatch_ptrace_ctx *pctx;
 	siginfo_t siginfo;
@@ -451,8 +455,13 @@ kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
 		 * Bail out.
 		 */
 		pctx = kpatch_ptrace_find_thread(proc, pid, 0);
-		if (pctx != NULL)
+		if (pctx != NULL) {
 			pctx->running = 0;
+			kperr("the thread ran out: %d, pc= %llx, expected = %lx\n",
+					pid, regs.pc, pctx->execute_until);
+		} else {
+			kperr("the thread ran out: %d, pc= %llx\n", pid, regs.pc);
+		}
 
 		/* TODO: fix the latter by SINGLESTEPping such a thread with
 		 * the original instruction in place */

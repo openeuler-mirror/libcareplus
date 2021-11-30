@@ -119,6 +119,14 @@ struct kpatch_payload {
 	char *description; // could be NULL
 };
 
+/*
+ * When modifying the struct kpatch_file structure, you need to pay attention to
+ * two points:
+ * 1. make sure that the struct kpatch_file structure does not exceed
+ *    1024 bytes;
+ * 2. add pad to ensure that the start address of the ELF executable
+ *    part is aligned to 8 bytes;
+ */
 struct kpatch_file {
 	char magic[8];			/* magic string */
 	char id[8];			/* unique patch id */
@@ -127,16 +135,19 @@ struct kpatch_file {
 	char pad[6];
 	char modulename[64];		/* "vmlinux" or module name */
 	char buildid[KPATCH_BUILDID_LEN + 1];	/* patch buildid */
-	char pad1[23];
+	char pad1[7];
 
 	uint64_t build_time;		/* build time */
 	uint32_t csum;			/* checksum of the whole kpatch */
 	uint32_t nr_reloc;		/* number of relocations */
 
-	kpatch_offset_t kpatch_offset;	/* content offset */
+	kpatch_offset_t kpatch_offset;	/* elf content offset in kpatch file */
 	kpatch_offset_t rel_offset;	/* relocations offset (vmlinux) */
 	kpatch_offset_t total_size;	/* total size = header + relocations + content */
 	kpatch_offset_t jmp_offset;	/* jump table offset for user-space patches */
+	kpatch_offset_t elf_offset;	/* elf content offset in patient's mem */
+	char pad2[4];
+	uint64_t kpatch_total_mem_sz;	/* malloc total mem size for kpatch in patient's mem */
 
 	/* array of entry offsets in the patch content */
 	union {
@@ -162,7 +173,7 @@ struct kpatch_file {
 	};
 
 	char srcversion[25]; /* srcversion of module or zeros */
-	char pad2[231];
+	char pad3[231];
 
 	/* relocations */
 	/* content */

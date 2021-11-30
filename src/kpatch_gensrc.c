@@ -174,8 +174,10 @@ void rename_add(struct kp_file *f, kpstr_t *src, kpstr_t *dst)
 	if (r == NULL) {
 		kpfatal("Failed to malloc rbtree!\n");
 	}
-	r->src = *src;
-	r->dst = *dst;
+	r->src.l = src->l;
+	r->src.s = strdup(src->s);
+	r->dst.l = dst->l;
+	r->dst.s = strdup(dst->s);
 	rb_insert_node(&f->renames, &r->rb, rename_cmp, (unsigned long)src);
 }
 
@@ -185,8 +187,18 @@ void rename_del(struct kp_file *f, kpstr_t *src)
 	r = rename_find(f, src);
 	if (r) {
 		rb_erase(&r->rb, &f->renames);
+		free(r->src.s);
+		free(r->dst.s);
 		free(r);
 	}
+}
+
+static void rename_free(struct rb_node *node)
+{
+	struct rename *r = rb_entry(node, struct rename, rb);
+	free(r->src.s);
+	free(r->dst.s);
+	free(r);
 }
 
 int strcmp_after_rename(struct kp_file *f0, struct kp_file *f1, char *s0, char *s1)
@@ -320,11 +332,12 @@ static int is_global_rip_reference(kpstr_t *t)
 
 #define	MOV_PREFIX	"mov"
 #define	MOV_LENGTH	(sizeof(MOV_PREFIX) - 1)
+#define	MAX_FLAVOR_SIZE	16
 
 void str_do_gotpcrel(struct kp_file *f, char *dst, char *src)
 {
 	kpstr_t mov, movsrc, movdst, tmptok;
-	char flavor[16], *s = src, *d = dst;
+	char flavor[MAX_FLAVOR_SIZE], *s = src, *d = dst;
 
 	*d = 0;
 
@@ -336,6 +349,10 @@ void str_do_gotpcrel(struct kp_file *f, char *dst, char *src)
 
 	/* Command has no %rip reference */
 	if (strstr(s, "%rip") == NULL)
+		goto out;
+
+	if (mov.l < MOV_LENGTH ||
+	    mov.l - MOV_LENGTH >= MAX_FLAVOR_SIZE)
 		goto out;
 
 	strncpy(flavor, mov.s + MOV_LENGTH, mov.l - MOV_LENGTH);
@@ -417,7 +434,9 @@ out:
 
 static void change_section(struct kp_file *fout, struct section_desc *sect, int flags)
 {
+	static int init_data_section = 0;
 	char *s;
+	char *align = NULL;
 
 	if (sect == NULL) {
 		kpfatal("Section description is NULL!\n");
@@ -427,10 +446,17 @@ static void change_section(struct kp_file *fout, struct section_desc *sect, int 
 		s = sect->outname;
 	else if (sect->type & SECTION_EXECUTABLE)
 		s = ".kpatch.text,\"ax\",@progbits";
-	else
+	else {
 		s = ".kpatch.data,\"aw\",@progbits";
+		if (!init_data_section && !(flags & FLAG_PUSH_SECTION)) {
+			init_data_section = 1;
+			align = ".p2align\t12";
+		}
+	}
 
 	fprintf(fout->f, "\t.%ssection %s\n", (flags & FLAG_PUSH_SECTION) ? "push" : "", s);
+	if (align)
+		fprintf(fout->f, "\t%s\n", align);
 }
 
 void get_comm_args(struct kp_file *f, int l, kpstr_t *xname, int *sz, int *align)
@@ -958,6 +984,7 @@ static void __name_add_kpatch_suffix(struct kp_file *f, kpstr_t *t, kpstr_t *bas
 	snprintf(tnew.s, tnew.l, "%.*s%s", basename->l, basename->s, suffix);
 	rename_add(f, t, &tnew);
 	kplog(LOG_DEBUG, "RENAME[%d]: %.*s -> %.*s\n", f->id, t->l, t->s, tnew.l, tnew.s);
+	free(tnew.s);
 }
 
 static void cblock_make_new_labels(struct cblock *b)
@@ -1639,6 +1666,10 @@ int main(int argc, char **argv)
 	struct kp_file infile[2], outfile;
 	int ret = -1;
 
+	memset(&infile[0], 0, sizeof(struct kp_file));
+	infile[0].f = NULL;
+	memset(&infile[1], 0, sizeof(struct kp_file));
+	infile[1].f = NULL;
 	memset(&outfile, 0, sizeof(struct kp_file));
 	outfile.f = NULL;
 	while ((ch = getopt_long(argc, argv, "d:O:i:o:a:f", long_opts, 0)) != -1) {
@@ -1739,6 +1770,16 @@ int main(int argc, char **argv)
 	ret = 0;
 
 cleanup:
+	rb_destroy(&infile[0].renames, rename_free);
+	rb_destroy(&infile[1].renames, rename_free);
+	/*
+	 * The nodes in cblocks_by_start, cblocks_by_name, and cblocks_by_human_name
+	 * are same, so only need to free nodes in one tree.
+	 */
+	rb_destroy(&infile[0].cblocks_by_start, cblock_free_by_start);
+	rb_destroy(&infile[1].cblocks_by_start, cblock_free_by_start);
+	close_file(&infile[0]);
+	close_file(&infile[1]);
 	close_file(&outfile);
 
 	return ret;

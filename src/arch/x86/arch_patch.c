@@ -33,7 +33,7 @@
  * This flag is local, i.e. it is never stored to the
  * patch applied to patient's memory.
  */
-unsigned int PATCH_APPLIED =    (1 << 31);
+unsigned int PATCH_APPLIED = (1 << 31);
 unsigned int HUNK_SIZE = 5;
 
 int patch_apply_hunk(struct object_file *o, size_t nhunk)
@@ -61,6 +61,9 @@ int patch_apply_hunk(struct object_file *o, size_t nhunk)
 				       code,
 				       info->daddr,
 				       sizeof(code));
+	if (ret < 0) {
+		kperr("Failed to write remote info");
+	}
 	/*
 	 * NOTE(pboldin): This is only stored locally, as information have
 	 * been copied to patient's memory already.

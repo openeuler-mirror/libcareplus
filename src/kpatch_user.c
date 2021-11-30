@@ -135,6 +135,8 @@ int cmd_patch_user(int argc, char *argv[])
 		goto out_err;
 
 	storage_path = argv[argc - 1];
+
+	kpinfo("Applying patch for %d with %s", pid, storage_path);
 	ret = patch_user(storage_path, pid,
 			 /* is_just_started */ 0, /* send_fd */ -1);
 
@@ -201,6 +203,8 @@ int cmd_unpatch_user(int argc, char *argv[])
 	if (!kpatch_check_system())
 		return -1;
 
+	kpinfo("Unpplying patch for %d with patch id '%s'",
+	       pid, patch_id);
 	return processes_unpatch(pid, argv, argc, patch_id);
 }
 
@@ -301,6 +305,7 @@ int cmd_info_user(int argc, char *argv[])
 	if (!verbose)
 		log_level = LOG_ERR;
 
+	kpinfo("Query patch information for %d", pid);
 	return process_info(pid);
 }
 

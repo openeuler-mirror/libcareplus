@@ -83,7 +83,7 @@ locate_start_context_symbol(struct kpatch_process *proc,
 }
 
 int get_ptr_guard(struct kpatch_process *proc,
-			 unsigned long *ptr_guard)
+				  unsigned long *ptr_guard)
 {
 	int ret;
 	unsigned long tls;

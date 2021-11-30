@@ -38,6 +38,7 @@
 #include <errno.h>
 #include <string.h>
 #include <sys/fcntl.h>
+#include <sys/mman.h>
 
 #include <gelf.h>
 #include <libunwind.h>
@@ -272,8 +273,10 @@ patch_ensure_safety(struct object_file *o,
 	list_for_each_entry(p, &o->proc->ptrace.pctxs, list)
 		nr++;
 	retips = malloc(nr * sizeof(unsigned long));
-	if (retips == NULL)
+	if (retips == NULL) {
+		kperr("Failed to malloc retips");
 		return -1;
+	}
 
 	memset(retips, 0, nr * sizeof(unsigned long));
 
@@ -322,8 +325,8 @@ duplicate_kp_file(struct object_file *o)
 	return 0;
 }
 
-extern int PATCH_APPLIED;
-extern int HUNK_SIZE;
+extern unsigned int PATCH_APPLIED;
+extern unsigned int HUNK_SIZE;
 
 static int
 object_apply_patch(struct object_file *o)
@@ -354,9 +357,12 @@ object_apply_patch(struct object_file *o)
 	if (ret < 0)
 		return ret;
 
-	kp = o->kpfile.patch;
+	kpatch_get_kpatch_data_offset(o);
 
-	sz = ROUND_UP(kp->total_size, 8);
+	kp = o->kpfile.patch;
+	/* kpatch header */
+	sz = ROUND_UP(sizeof(struct kpatch_file), 8);
+	/* jmp table */
 	undef = kpatch_count_undefined(o);
 	if (undef) {
 		o->jmp_table = kpatch_new_jmp_table(undef);
@@ -364,17 +370,24 @@ object_apply_patch(struct object_file *o)
 			return -1;
 		}
 		kp->jmp_offset = sz;
-		kpinfo("Jump table %d bytes for %d syms at offset 0x%x\n",
-		       o->jmp_table->size, undef, kp->jmp_offset);
-		sz = ROUND_UP(sz + o->jmp_table->size, 128);
+		kpdebug("Jump table %d bytes for %d syms at offset 0x%x\n",
+			o->jmp_table->size, undef, kp->jmp_offset);
+		sz = ROUND_UP(sz + o->jmp_table->size, 4096);
 	}
+	sz = ROUND_UP(sz, 4096);
 
-	kp->user_info = (unsigned long)o->info -
-			(unsigned long)o->kpfile.patch;
+	/* kpatch elf */
+	kp->elf_offset = sz;
+	sz = ROUND_UP(sz + kp->total_size - sizeof(struct kpatch_file), 128);
+	/* Calculate the .kpatch.info offset in remote kapatch memory region
+	 * and save it to kp->user_info */
+	kp->user_info = (unsigned long)o->info_offset + (unsigned long)kp->elf_offset;
+	/* user undo */
 	kp->user_undo = sz;
 	sz = ROUND_UP(sz + HUNK_SIZE * o->ninfo, 16);
 
 	sz = ROUND_UP(sz, 4096);
+	kp->kpatch_total_mem_sz = sz;
 
 	/*
 	 * Map patch as close to the original code as possible.
@@ -389,19 +402,42 @@ object_apply_patch(struct object_file *o)
 	ret = kpatch_relocate(o);
 	if (ret < 0)
 		return ret;
+
+	/* Then, write kpatch elf to patient's memory */
+	kpdebug("kpatch elf: 0x%lx + 0x%lx", o->kpta + kp->elf_offset,
+		kp->total_size - sizeof(struct kpatch_file));
+	ret = kpatch_process_mem_write(o->proc,
+				       (void *)kp + kp->kpatch_offset,
+				       o->kpta + kp->elf_offset,
+				       kp->total_size - sizeof(struct kpatch_file));
+	if (ret < 0) {
+		kperr("Failed to write kpatch elf");
+		return ret;
+	}
+
+	/* Finally, write kpatch header to patient's memory */
+	kpdebug("kpatch header: 0x%lx + 0x%lx",
+			o->kpta, sizeof(struct kpatch_file));
 	ret = kpatch_process_mem_write(o->proc,
 				       kp,
 				       o->kpta,
-				       kp->total_size);
-	if (ret < 0)
-		return -1;
+				       sizeof(struct kpatch_file));
+	if (ret < 0) {
+		kperr("Failed to write kpatch header");
+		return ret;
+	}
+
 	if (o->jmp_table) {
+		kpdebug("jmp table: 0x%lx + 0x%x",
+			o->kpta + kp->jmp_offset, o->jmp_table->size);
 		ret = kpatch_process_mem_write(o->proc,
 					       o->jmp_table,
 					       o->kpta + kp->jmp_offset,
 					       o->jmp_table->size);
-		if (ret < 0)
+		if (ret < 0) {
+			kperr("Failed to write jmp table");
 			return ret;
+		}
 	}
 
 	ret = patch_ensure_safety(o, ACTION_APPLY_PATCH);
@@ -413,6 +449,16 @@ object_apply_patch(struct object_file *o)
 		if (ret < 0)
 			return ret;
 	}
+
+	/* change .kpatch.text and jmp table mem to readable and executable */
+	ret = kpatch_mprotect_remote(proc2pctx(o->proc), o->kpta,
+	      o->data_offset ? kp->elf_offset + o->data_offset : kp->kpatch_total_mem_sz,
+	      PROT_READ | PROT_EXEC);
+	if (ret < 0) {
+		kperr("Failed to change kpatch access protection");
+		return ret;
+	}
+	kpinfo("r-xp: 0x%lx + 0x%lx", o->kpta, kp->elf_offset + o->data_offset);
 
 	return 1;
 }
@@ -548,6 +594,23 @@ out:
 	return ret;
 }
 
+static int
+object_kpatch_info_realloc(struct object_file *o, size_t nalloc)
+{
+	struct kpatch_info *tmp = NULL;
+
+	tmp = realloc(o->info, nalloc * sizeof(struct kpatch_info));
+	if (tmp == NULL) {
+		kperr("Failed to realloc o->info!\n");
+		free(o->info);
+		o->info = NULL;
+		o->ninfo = 0;
+		return -1;
+	}
+
+	o->info = tmp;
+	return 0;
+}
 
 /*****************************************************************************
  * Patch cancellcation subroutines and cmd_unpatch_user
@@ -566,37 +629,41 @@ object_find_applied_patch_info(struct object_file *o)
 	if (o->info != NULL)
 		return 0;
 
-	if (o->kpfile.patch)
+	if (o->kpfile.patch) {
 		patch_id = o->kpfile.patch->id;
-	else
+	} else {
+		kperr("Object(%s) kpatch file is NULL", o->name);
 		return -1;
+	}
 
 	applied_patch = kpatch_object_get_applied_patch_by_id(o, patch_id);
 	if (!applied_patch) {
-		fprintf(stderr, "Failed to find target applied patch!\n");
+		kperr("Failed to find target applied patch!");
 		return -1;
 	}
 
 	iter = kpatch_process_mem_iter_init(o->proc);
-	if (iter == NULL)
+	if (iter == NULL) {
+		kperr("Failed to initialize iterator");
 		return -1;
+	}
 
 	remote_info = (void *)o->kpta + o->kpfile.patch->user_info;
 	do {
 		ret = REMOTE_PEEK(iter, tmpinfo, remote_info);
-		if (ret < 0)
+		if (ret < 0) {
+			kperr("Failed to get remote kpatch info");
 			goto err;
+		}
 
 		if (is_end_info(&tmpinfo))
 		    break;
 
 		if (o->ninfo == nalloc) {
 			nalloc += 16;
-			o->info = realloc(o->info, nalloc * sizeof(tmpinfo));
-			if (o->info == NULL) {
-				kperr("Failed to realloc o->info!\n");
-				o->ninfo = 0;
+			if (object_kpatch_info_realloc(o, nalloc) < 0) {
 				ret = -1;
+				kperr("Failed to expand kpatch info mem");
 				goto err;
 			}
 		}
@@ -657,10 +724,12 @@ object_unapply_patch(struct object_file *o, int check_flag)
 	kpinfo("munmap kpatch memory from 0x%lx\n", o->kpta);
 	ret = kpatch_munmap_remote(proc2pctx(o->proc),
 				   o->kpta,
-				   o->kpfile.size);
+				   o->kpfile.patch->kpatch_total_mem_sz);
 
-	if (ret < 0)
+	if (ret < 0) {
+		kperr("Failed to unmap remote kpatch mem");
 		return ret;
+	}
 
 	return 1;
 }
@@ -758,7 +827,7 @@ out_free:
 	if (is_calc_time) {
 		gettimeofday(&end_tv, NULL);
 		frozen_time = GET_MICROSECONDS(end_tv, start_tv);
-		kpinfo("PID '%d' process unpatch frozen_time is %ld microsecond\n", pid, frozen_time);
+		kpinfo("PID '%d' process unpatch frozen_time is %lu microsecond\n", pid, frozen_time);
 	}
 
 out:

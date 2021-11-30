@@ -26,6 +26,9 @@
 #include "kpatch_file.h"
 #include "list.h"
 
+/* "[kpatch-<buildid>]" string length */
+#define KPATCH_OBJECT_NAME_LEN (KPATCH_BUILDID_LEN + sizeof("[kpatch-]"))
+
 struct kpatch_process;
 typedef struct kpatch_process kpatch_process_t;
 
@@ -107,6 +110,11 @@ struct object_file {
 
 	/* Program header */
 	Elf64_Phdr *phdr;
+
+	/* .kpatch.data sh_offset */
+	Elf64_Off data_offset;
+	/* .kpatch.info sh_offset */
+	Elf64_Off info_offset;
 
 	/* Dynamic symbols exported by the object if it is a library */
 	Elf64_Sym *dynsyms;

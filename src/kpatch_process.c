@@ -131,6 +131,8 @@ process_new_object(kpatch_process_t *proc,
 		kpdebug("FAIL\n");
 		return NULL;
 	}
+	memset(o, 0, sizeof(struct object_file));
+
 	list_init(&o->list);
 	list_init(&o->vma);
 	list_init(&o->applied_patch);
@@ -158,12 +160,14 @@ process_new_object(kpatch_process_t *proc,
 	o->load_offset = ~(unsigned long)0;
 	memset(&o->ehdr, 0, sizeof(o->ehdr));
 	o->phdr = NULL;
+	o->data_offset = 0;
 	o->is_elf = 0;
 	o->is_unpatch_target_elf = 0;
 	o->dynsyms = NULL;
 	o->ndynsyms = 0;
 	o->dynsymnames = NULL;
 	init_kp_file(&o->kpfile);
+
 	list_add(&o->list, &proc->objs);
 	proc->num_objs++;
 	kpdebug("OK\n");
@@ -190,8 +194,8 @@ process_get_object_type(kpatch_process_t *proc,
 		return -1;
 	}
 
-	if (!strcmp(name, "[anonymous]") &&
-	    vma->prot == (PROT_READ | PROT_WRITE | PROT_EXEC) &&
+	if (vma->prot == (PROT_READ | PROT_EXEC) &&
+	    !strncmp(name, "[anonymous]", strlen("[anonymous]")) &&
 	    (vma->end - vma->start) >= sizeof(struct kpatch_file))
 		type = OBJECT_KPATCH;
 
@@ -206,7 +210,8 @@ process_get_object_type(kpatch_process_t *proc,
 		struct kpatch_file *pkpfile = (struct kpatch_file *)buf;
 
 		if (!strcmp(pkpfile->magic, KPATCH_FILE_MAGIC1)) {
-			sprintf(name, "[kpatch-%s]", pkpfile->buildid);
+			snprintf(name, KPATCH_OBJECT_NAME_LEN,
+				 "[kpatch-%s]", pkpfile->buildid);
 			return type;
 		}
 	}
@@ -233,6 +238,8 @@ process_add_object_vma(kpatch_process_t *proc,
 	unsigned char header_buf[1024];
 	struct object_file *o;
 
+	/* Event though process_get_object_type() return -1,
+	 * we still need continue process. */
 	object_type = process_get_object_type(proc,
 					      vma,
 					      name,
@@ -273,8 +280,10 @@ process_add_object_vma(kpatch_process_t *proc,
 		rv = kpatch_elf_object_set_ehdr(o,
 						header_buf,
 						sizeof(header_buf));
-		if (rv < 0)
+		if (rv < 0) {
 			kperr("unable to kpatch_elf_object_set_ehdr\n");
+			return -1;
+		}
 	}
 
 	return 0;
@@ -342,8 +351,9 @@ object_destroy(struct object_file *o)
 	if (o->is_patch) {
 		free(o->info);
 	}
-	if (o->num_applied_patch == 0)
+	if (o->kpfile.patch) {
 		free(o->kpfile.patch);
+	}
 	free(o);
 }
 
@@ -402,6 +412,7 @@ process_add_vm_hole(kpatch_process_t *proc,
 	if (hole == NULL)
 		return NULL;
 
+	memset(hole, 0, sizeof(*hole));
 	hole->start = hole_start;
 	hole->end = hole_end;
 
@@ -416,6 +427,7 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 	struct object_file *o, *objpatch;
 	size_t found = 0;
 	size_t unpatch_target_elf_num = 0;
+	struct kpatch_file *patch = NULL;
 
 	list_for_each_entry(objpatch, &proc->objs, list) {
 
@@ -439,8 +451,16 @@ kpatch_process_associate_patches(kpatch_process_t *proc, const char *patch_id)
 							    struct obj_vm_area,
 							    list);
 				o->kpta = patchvma->inmem.start;
-				o->kpfile = objpatch->kpfile;
 				o->is_unpatch_target_elf = 1;
+
+				/* copy kpatch object kpfile information */
+				patch = malloc(sizeof(struct kpatch_file));
+				if (patch == NULL)
+					return -1;
+				memcpy(patch, objpatch->kpfile.patch, sizeof(struct kpatch_file));
+				o->kpfile.patch = patch;
+				o->kpfile.size = objpatch->kpfile.size;
+
 				unpatch_target_elf_num++;
 			}
 
@@ -474,14 +494,14 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 	 */
 	fd = dup(proc->fdmaps);
 	if (fd < 0) {
-		kperr("unable to dup fd %d\n", proc->fdmaps);
+		kperr("unable to dup fd %d", proc->fdmaps);
 		return -1;
 	}
 
 	lseek(fd, 0, SEEK_SET);
 	f = fdopen(fd, "r");
 	if (f == NULL) {
-		kperr("unable to fdopen %d\n", fd);
+		kperr("unable to fdopen %d", fd);
 		close(fd);
 		return -1;
 	}
@@ -499,6 +519,10 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 		r = sscanf(line, "%lx-%lx %s %lx %x:%x %d %255s",
 			   &start, &end, perms, &offset,
 			   &maj, &min, &inode, name_);
+		if (r == EOF) {
+			kperr("sscanf failed: end of file");
+			goto error;
+		}
 		if (r != 8)
 			strcpy(name, "[anonymous]");
 
@@ -513,8 +537,10 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 			hole = process_add_vm_hole(proc,
 						   hole_start + PAGE_SIZE,
 						   start - PAGE_SIZE);
-			if (hole == NULL)
+			if (hole == NULL) {
+				kperr("Failed to add vma hole");
 				goto error;
+			}
 		}
 		hole_start = end;
 
@@ -522,8 +548,10 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 
 		ret = process_add_object_vma(proc, makedev(maj, min),
 					     inode, name, &vma, hole);
-		if (ret < 0)
+		if (ret < 0) {
+			kperr("Failed to add object vma");
 			goto error;
+		}
 
 		if (!is_libc_base_set &&
 		    !strncmp(basename(name), "libc", 4) &&
@@ -536,12 +564,12 @@ kpatch_process_parse_proc_maps(kpatch_process_t *proc)
 	fclose(f);
 
 	if (!is_libc_base_set) {
-		kperr("Can't find libc_base required for manipulations: %d\n",
+		kperr("Can't find libc_base required for manipulations: %d",
 		      proc->pid);
 		return -1;
 	}
 
-	kpinfo("Found %d object file(s).\n", proc->num_objs);
+	kpinfo("Found %d object file(s)", proc->num_objs);
 
 	return 0;
 
@@ -568,7 +596,7 @@ kpatch_process_map_object_files(kpatch_process_t *proc, const char *patch_id)
 
 	ret = kpatch_process_associate_patches(proc, patch_id);
 	if (ret >= 0) {
-		kpinfo("Found %d applied patch(es).\n", ret);
+		kpinfo("Found %d applied patch(es)", ret);
 	}
 
 	return ret;
@@ -630,7 +658,7 @@ process_list_threads(kpatch_process_t *proc,
 		     size_t *npids,
 		     size_t *alloc)
 {
-	DIR *dir;
+	DIR *dir = NULL;
 	struct dirent *de;
 	char path[128];
 	int *pids = *ppids;
@@ -639,7 +667,7 @@ process_list_threads(kpatch_process_t *proc,
 	dir = opendir(path);
 	if (!dir) {
 		kplogerror("can't open '%s' directory\n", path);
-		return -1;
+		goto dealloc;
 	}
 
 	*npids = 0;
@@ -671,6 +699,8 @@ process_list_threads(kpatch_process_t *proc,
 	return *npids;
 
 dealloc:
+	if (dir)
+		closedir(dir);
 	free(pids);
 	*ppids = NULL;
 	*alloc = *npids = 0;
@@ -796,7 +826,8 @@ process_print_cmdline(kpatch_process_t *proc)
 	int fd;
 	ssize_t i, rv;
 
-	sprintf(buf, "/proc/%d/cmdline", proc->pid);
+	snprintf(buf, sizeof("/proc/0123456789/cmdline"),
+		 "/proc/%d/cmdline", proc->pid);
 	fd = open(buf, O_RDONLY);
 	if (fd == -1) {
 		kplogerror("open\n");
@@ -825,7 +856,6 @@ process_print_cmdline(kpatch_process_t *proc)
 		}
 	}
 
-
 err_close:
 	close(fd);
 }
@@ -838,7 +868,8 @@ process_get_comm_ld_linux(kpatch_process_t *proc)
 	ssize_t i, rv;
 
 	kpdebug("process_get_comm_ld_linux");
-	sprintf(buf, "/proc/%d/cmdline", proc->pid);
+	snprintf(buf, sizeof("/proc/0123456789/cmdline"),
+		 "/proc/%d/cmdline", proc->pid);
 	fd = open(buf, O_RDONLY);
 	if (fd == -1) {
 		kplogerror("open\n");
@@ -1010,8 +1041,10 @@ vm_hole_split(struct vm_hole *hole,
 		struct vm_hole *left = NULL;
 
 		left = malloc(sizeof(*hole));
-		if (left == NULL)
+		if (left == NULL) {
+			kperr("Failed to malloc for vm hole");
 			return -1;
+		}
 
 		left->start = hole->start;
 		left->end = alloc_start;
@@ -1067,11 +1100,10 @@ kpatch_object_allocate_patch(struct object_file *o,
 
 	addr = kpatch_mmap_remote(proc2pctx(o->proc),
 				  addr, sz,
-				  PROT_READ | PROT_WRITE | PROT_EXEC,
+				  PROT_READ | PROT_WRITE,
 				  MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if (addr == 0) {
-		kplogerror("remote alloc of 0x%lx bytes failed\n",
-			   addr);
+		kplogerror("remote alloc memory for patch failed\n");
 		return -1;
 	}
 
@@ -1182,7 +1214,7 @@ kpatch_process_get_obj_by_regex(kpatch_process_t *proc, const char *regex)
 
 struct object_file *
 kpatch_object_get_applied_patch_by_id(struct object_file *o,
-                                            const char *patch_id)
+									  const char *patch_id)
 {
 	struct obj_applied_patch *applied_patch;
 

@@ -153,7 +153,7 @@ int kpatch_objinfo_is_our_section(kpatch_objinfo *oi, int secnum)
 	int i = 0, n = ARRAY_SIZE(oi->_kpatch_sections);
 	unsigned short *s  = oi->_kpatch_sections;
 
-	for (; s[i] && i < n; i++) {
+	for (; i < n && s[i]; i++) {
 		if (s[i] == secnum)
 			return 1;
 	}
