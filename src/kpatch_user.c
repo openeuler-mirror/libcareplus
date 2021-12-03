@@ -291,6 +291,7 @@ int cmd_info_user(int argc, char *argv[])
 	 while ((opt = getopt(argc, argv, "hp:v")) != EOF) {
 		switch (opt) {
 		case 'p':
+			pid = atoi(optarg);
 			break;
 		case 'v':
 			verbose = 1;
