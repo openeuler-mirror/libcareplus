@@ -448,7 +448,7 @@ static void change_section(struct kp_file *fout, struct section_desc *sect, int 
 		s = ".kpatch.text,\"ax\",@progbits";
 	else {
 		s = ".kpatch.data,\"aw\",@progbits";
-		if (!init_data_section && !(flags & FLAG_PUSH_SECTION)) {
+		if (!init_data_section && (flags & FLAG_PUSH_SECTION)) {
 			init_data_section = 1;
 			align = ".p2align\t12";
 		}
