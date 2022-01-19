@@ -1,4 +1,10 @@
 /******************************************************************************
+ * 2021.12.16 - kpatch_parse: enhance init_other_block() to extend function cblock to cover .init_array
+ * China Telecom, <luoyi2@chinatelecom.cn>
+ * 
+ * 2021.12.13 - kpatch_parse: adjust the judgment for the end of function cblock in init_func_block()
+ * China Telecom, <luoyi2@chinatelecom.cn>
+ * 
  * 2021.10.11 - kpatch: fix code checker warning
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  *
@@ -70,6 +76,19 @@ void get_token(char **str, kpstr_t *x)
 {
 	const char *delim = " \t,;:-+*()[]$\n";
 	__get_token(str, x, delim);
+}
+
+/* remove .cold. / .hot. in function name */
+void remove_cold_hot_suffix(kpstr_t *nm)
+{
+	if(!nm->s)
+		return;
+	
+	char *suffix_loc = strstr(nm->s, ".cold.");
+	if(!suffix_loc)
+		suffix_loc = strstr(nm->s, ".hot.");
+	if(suffix_loc)
+		nm->l = suffix_loc - nm->s;			/* remove .cold. / .hot. */
 }
 
 /* ------------------------------  as directives parsing ---------------------------------- */
@@ -303,13 +322,26 @@ static void init_func_block(struct kp_file *f, int *i, kpstr_t *nm)
 	int flags = 0;
 	struct cblock *blk;
 
-	while (e < f->nr_lines - 1 && !is_function_end(f, e, nm)) {
+	int func_cnt = 0;
+
+	while (e < f->nr_lines - 1) {
 		if (ctype(f, e) == DIRECTIVE_GLOBL)
 			globl = 1;
 		if (ctype(f, e) == DIRECTIVE_KPFLAGS) {
 			flags |= get_kpatch_flags(cline(f, e));
 			cline(f, e)[0] = 0;
 		}
+
+		/* if compiling is optimized by -freorder-functions, e.g funcA, it will contains like ".type funcA.cold.xxx,@function" inside funcA, 
+		and the end of funcA is not the first size directive matched with funcA. At present, use count for "@function" to judge*/
+		recog_func_attr(f, e, nm, &func_cnt);
+
+		if(is_function_end(f, e, nm)) {
+			--func_cnt;
+			if(!func_cnt)
+				break;
+		}
+
 		e++;
 	}
 
@@ -357,16 +389,76 @@ static void init_set_block(struct kp_file *f, int *i, kpstr_t *nm)
 	(*i)++;
 }
 
+/*if funcA is needed in initialization, e.g constructor in C++, the function pointer will be put into .init_array section. 
+the directives will appear right after the function size directive like this,
+
+	.size		funcA, .-funcA
+	.section	.init_array,"aw"
+	.align 8
+	.quad	funcA
+
+since LCOLD* or LHOT* label may appear inside, and the label may change after patched, if classified as OTHER or VAR cblock, 
+label change will conflict with the corresponding matching rules. also, we cannot set a proper VAR cblock name with no violation.
+it can only be treated as an extension of FUNC cblock. */
+
+#define EXT_INIARR_FLAG 1
+#define EXT_UPDATE_FLAG 2
+
 static void init_other_block(struct kp_file *f, int *i)
 {
 	int s = *i, e = *i;
+	int flag = 0;
+
 	kpstr_t nm;
-
-	while (e < f->nr_lines && !(is_function_start(f, e, &nm) || is_variable_start(f, e, NULL, NULL, &nm)))
-		e++;
-
 	kpstrset(&nm, "", 0);
-	cblock_add(f, s, e, &nm, CBLOCK_OTHER, 0);
+
+	char *line = NULL;
+	kpstr_t nm2;
+	kpstrset(&nm2, "", 0);
+
+	struct rb_node *node = NULL;
+	struct cblock *blk = NULL;
+
+	while (e < f->nr_lines && !(is_function_start(f, e, &nm) || is_variable_start(f, e, NULL, NULL, &nm))) {
+		if(ctype(f, e) == DIRECTIVE_SECTION && !strcmp(csect(f, e)->name, ".init_array")) 
+			flag = EXT_INIARR_FLAG;
+
+		if(flag && ctype(f, e) == DIRECTIVE_OTHER) {
+			line = cline(f, e);
+
+			if (is_data_def(line, DIRECTIVE_OTHER)) {
+				get_token(&line, &nm2);
+				get_token(&line, &nm2);
+
+				node = rb_last(&f->cblocks_by_start);
+				if(!node) {
+					++e;
+					break;
+				}
+
+				blk = rb_entry(node, struct cblock, rbs);
+				if(blk->type == CBLOCK_FUNC && !kpstrcmp(&blk->name, &nm2)) {
+					kplog(LOG_DEBUG, "Extend cblock %.*s (%d: %d-%d) to (%d: %d-%d)\n", 
+						blk->name.l, blk->name.s, f->id, blk->start, blk->end-1, f->id, blk->start, e);
+					blk->end = ++e;
+					flag = EXT_UPDATE_FLAG;
+					break;
+				}
+			}
+		}
+		++e;
+	}
+
+	if(flag == EXT_INIARR_FLAG) {
+		while (e < f->nr_lines && !(is_function_start(f, e, &nm) || is_variable_start(f, e, NULL, NULL, &nm)))
+			++e;
+	}
+
+	if(flag != EXT_UPDATE_FLAG) {
+		kpstrset(&nm, "", 0);
+		cblock_add(f, s, e, &nm, CBLOCK_OTHER, 0);
+	}
+
 	*i = e;
 }
 
@@ -696,6 +788,10 @@ int is_function_end(struct kp_file *f, int l, kpstr_t *nm)
 	char *s = cline(f, l);
 	get_token(&s, &nm2);	/* skip command */
 	get_token(&s, &nm2);
+
+	if(nm2.l > nm->l)
+		remove_cold_hot_suffix(&nm2);   /* remove .cold. / .hot. */
+
 	if (kpstrcmp(nm, &nm2)) /* verify name matches */
 		return 0;
 

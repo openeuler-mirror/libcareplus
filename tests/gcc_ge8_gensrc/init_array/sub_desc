@@ -1,0 +1,13 @@
+test .init_array cblock partition
+
+steps:
+1) compile the source code:
+    g++ init_array.cpp -S -O2 -o init_array.s
+
+2) generate diff-asm file with no difference to check the result of cblock
+    kpatch_gensrc --os=rhel6 -i init_array.s -i init_array.s -o tmp.s
+
+3) tmp.s should be the same as init_array.s, except the "#---var----" and "#----func---" 
+    sed '/^#/d' tmp.s > same.s
+    diff init_array.s same.s | wc -l 
+the result should be 0

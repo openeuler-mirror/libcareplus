@@ -1,0 +1,23 @@
+test var with @gnu_unique_object assigned in .tbss by using a "inline static thread_local" data member
+
+note: 
+1) the source code must compile with -std=c++17
+2) the test situation also can be constructed with a thread_local var in c++ template, eg:
+template <typename T>
+T func(T num1, T num2)
+{
+    thread_local T s0;
+    ... ...
+}
+
+steps:
+1) compile the source code:
+    g++ gnu_unique_object.cpp -S -O2 -std=c++17 -o gnu_unique_object.s
+
+2) generate diff-asm file with no difference to check the result of cblock
+    kpatch_gensrc --os=rhel6 -i gnu_unique_object.s -i gnu_unique_object.s -o tmp.s
+
+3) tmp.s should be the same as gnu_unique_object.s, except the "#---var----" and "#----func---" 
+    sed '/^#/d' tmp.s > same.s
+    diff gnu_unique_object.s same.s | wc -l 
+the result should be 0

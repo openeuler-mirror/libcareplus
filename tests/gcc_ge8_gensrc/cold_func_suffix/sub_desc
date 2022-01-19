@@ -1,0 +1,13 @@
+test LCOLD/LHOT func.cold.NUM for recent gcc(>=gcc 8) with __attribute__((cold)) and __builtin_expect
+
+steps:
+1) compile the source code:
+    g++ cold_func_suffix.cpp -S -O2 -o cold_func_suffix.s
+
+2) generate diff-asm file with no difference to check the result of cblock
+    kpatch_gensrc --os=rhel6 -i cold_func_suffix.s -i cold_func_suffix.s -o tmp.s
+
+3) tmp.s should be the same as cold_func_suffix.s, except the "#---var----" and "#----func---" 
+    sed '/^#/d' tmp.s > same.s
+    diff cold_func_suffix.s same.s | wc -l 
+the result should be 0
