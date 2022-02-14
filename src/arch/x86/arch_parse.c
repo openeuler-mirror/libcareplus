@@ -1,4 +1,13 @@
 /******************************************************************************
+ * 2022.01.18 - add recog_func_attr() for count "@function"
+ * China Telecom, <luoyi2@chinatelecom.cn>
+ * 
+ * 2021.12.13 - support the type of C++ "gnu_unique_object" variable in is_variable_start()
+ * China Telecom, <luoyi2@chinatelecom.cn>
+ * 
+ * 2021.12.13 - support the appearance of ".LCOLD*" or ".LHOT*" label in is_function_start() and is_variable_start()
+ * China Telecom, <luoyi2@chinatelecom.cn>
+ * 
  * 2021.10.08 - enhance kpatch_gensrc and kpatch_elf and kpatch_cc code
  * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
  ******************************************************************************/
@@ -37,9 +46,38 @@ int is_function_start(struct kp_file *f, int l, kpstr_t *nm)
 			func = func ? 1 : ctype(f, l) == DIRECTIVE_TYPE;
 			continue;
 		}
+
+		/* particularly: for "-freorder-functions" optimization under -O2/-O3/-Os, 
+		".LCOLD*" or ".LHOT*" label may appear at the head of function or variable cblock, 
+		it should not be divided into an independent cblock belonging to ATTR or OTHER */
+		if(ctype(f, l) == DIRECTIVE_LABEL) {
+			s = cline(f, l);
+			if(strstr(s, ".LCOLD") || strstr(s, ".LHOT"))
+				continue;
+		}
+
 		break;
 	}
 	return func;
+}
+
+void recog_func_attr(struct kp_file *f, int i, kpstr_t *nm, int *cnt)
+{
+	kpstr_t func_nm, func_attr;
+	
+	if(ctype(f, i) == DIRECTIVE_TYPE) {
+		kpstrset(&func_nm, "", 0);
+		kpstrset(&func_attr, "", 0);
+
+		get_type_args(cline(f, i), &func_nm, &func_attr);
+		if(!kpstrcmpz(&func_attr, "@function")) {
+			if(func_nm.l > nm->l)
+				remove_cold_hot_suffix(&func_nm);    /* remove .cold. / .hot. */
+
+			if(!kpstrcmp(&func_nm, nm))         /* verify name matches */
+				++(*cnt);  
+		}
+	}
 }
 
 int is_data_def(char *s, int type)
@@ -90,6 +128,15 @@ int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm
 		s = cline(f, l);
 		if (*s == '\0' && l != l0)
 			continue;
+
+		/* particularly: for "-freorder-functions" optimization under -O2/-O3/-Os, 
+		".LCOLD*" or ".LHOT*" label may appear at the head of function or variable cblock, 
+		it should not be divided into an independent cblock belonging to ATTR or OTHER */
+		if(ctype(f, l) == DIRECTIVE_LABEL) {
+			if(strstr(s, ".LCOLD") || strstr(s, ".LHOT"))
+				continue;
+		}
+
 		switch (ctype(f, l)) {
 			case DIRECTIVE_TYPE:
 			case DIRECTIVE_GLOBL:
@@ -115,7 +162,7 @@ int is_variable_start(struct kp_file *f, int l, int *e, int *pglobl, kpstr_t *nm
 				break;
 			case DIRECTIVE_TYPE:
 				get_type_args(cline(f, l), &nm2, &attr);
-				if (kpstrcmpz(&attr, "@object"))
+				if (kpstrcmpz(&attr, "@object") && kpstrcmpz(&attr, "@gnu_unique_object"))
 					return 0;
 				break;
 			case DIRECTIVE_GLOBL:

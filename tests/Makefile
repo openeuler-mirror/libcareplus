@@ -8,13 +8,15 @@ ifeq ($(ARCH), aarch64)
 	SUBDIRS := $(filter-out $(AARCH64_NO_SUPPORT_TESTS), $(SUBDIRS))
 endif
 
+GCC_GE8_GENSRC_TESTS := $(patsubst gcc_ge8_gensrc/%/sub_desc,%,$(wildcard gcc_ge8_gensrc/*/sub_desc))
+
 KPATCH_PATH:=$(CURDIR)/../src
 export KPATCH_PATH
 
 all: run
 
 list:
-	@echo TESTS: $(SUBDIRS)
+	@echo TESTS: $(SUBDIRS) $(GCC_GE8_GENSRC_TESTS)
 
 fastsleep.so: CFLAGS += -fPIC
 fastsleep.so: fastsleep.c
@@ -26,6 +28,7 @@ clean: $(addprefix clean-,$(SUBDIRS))
 		$(CURDIR)/lpmakelevel-patchroot
 	rm -f fastsleep.so
 	make -C execve clean
+	make -C gcc_ge8_gensrc clean
 
 clean-%: FORCE
 	make -C $* clean
@@ -98,6 +101,9 @@ run-lpmakelevel: RUNTESTSFLAGS := -d lpmake -p $(CURDIR)/lpmakelevel-patchroot
 run-lpmakelevel: fastsleep.so
 run-lpmakelevel: run-startup-lpmakelevel
 
-run: run-build run-patchlevel # run-lpmake run-lpmakelevel
+run-gcc_ge8_gensrc:
+	make -C gcc_ge8_gensrc
+
+run: run-build run-patchlevel run-gcc_ge8_gensrc # run-lpmake run-lpmakelevel
 
 FORCE:
