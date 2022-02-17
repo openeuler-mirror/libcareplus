@@ -789,6 +789,7 @@ symbol_resolve(struct object_file *o,
 		break;
 
 	case STT_NOTYPE:			// for Systemtap symbol _.stapsdt.base.kpatch
+		s->st_value += shdr[s->st_shndx].sh_addr;
 		break;
 
 	default:
