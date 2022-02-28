@@ -220,8 +220,9 @@ static int kpatch_strip(Elf *elfin, Elf *elfout)
 		} else {
 			kpinfo("don't need it\n");
 			shout.sh_type = SHT_NOBITS;
-			shout.sh_link = 0;
-			shout.sh_info = 0;
+                        /* destroy the .rela section sh_flags INFO property */
+                        if (!strncmp(scnname, ".rela", 5))
+                                shout.sh_flags = SHF_ALLOC;
 		}
 		if (!gelf_update_shdr(scnout, &shout)) {
 			kperr("Failed to do gelf_update_shdr need");
