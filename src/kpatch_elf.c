@@ -180,13 +180,19 @@ static int
 elf_object_is_interp_exception(struct object_file *o)
 {
 	/* libc */
-	if (!strncmp(o->name, "libc.", 5))
+	if (!strncmp(o->name, "libc.so.", 8) ||
+                (!strncmp(o->name, "libc-", 5) &&
+                 !strncmp(o->name + strlen(o->name) - 3, ".so", 3)))
 		return 1;
 	/* libpthread */
-	if (!strncmp(o->name, "libpthread.", 11))
+	if (!strncmp(o->name, "libpthread.so.", 14) ||
+                (!strncmp(o->name, "libpthread-", 11) &&
+                 !strncmp(o->name + strlen(o->name) - 3, ".so", 3)))
 		return 1;
 	/* libdl */
-	if (!strncmp(o->name, "libdl.", 6))
+	if (!strncmp(o->name, "libdl.so.", 9) ||
+                (!strncmp(o->name, "libdl-", 6) &&
+                 !strncmp(o->name + strlen(o->name) - 3, ".so", 3)))
 		return 1;
 	return 0;
 }
