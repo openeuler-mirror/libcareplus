@@ -22,12 +22,12 @@ for SOURCE in $SOURCE_SET; do
     FILENAME=${SOURCE##*/}
     CASENAME=${FILENAME%.orig.s}
     if [ $CASENAME == "cold_func_suffix" ]; then
-        KEY_WORD="\.cold."
+        KEY_WORD="\.cold"
     else
         KEY_WORD=$CASENAME
     fi
 
-    KEY_WORD_LINE=$(grep -c $KEY_WORD $SOURCE)
+    KEY_WORD_LINE=$(grep -c "$KEY_WORD" $SOURCE)
     if [ $KEY_WORD_LINE -lt "2" ]; then
         echo "SKIP: $CASENAME, $KEY_WORD not found"
         SKIP_CNT=$(($SKIP_CNT+1))
@@ -37,7 +37,7 @@ for SOURCE in $SOURCE_SET; do
     $KPATCH_GENSRC --os=rhel6 -i $SOURCE -i $SOURCE -o ${SOURCE/.orig/.o}
     sed -i '/^#/d' ${SOURCE/.orig/.o}
 
-    DIFF_LINE=$(diff $SOURCE ${SOURCE/.orig/.o} | grep -c $KEY_WORD)
+    DIFF_LINE=$(diff $SOURCE ${SOURCE/.orig/.o} | grep -c "$KEY_WORD")
     if [ $DIFF_LINE -gt "0" ]; then
         echo "TEST $CASENAME IS FAIL"
         FAIL_CNT=$(($FAIL_CNT+1))
@@ -48,4 +48,7 @@ for SOURCE in $SOURCE_SET; do
 done
 
 echo "OK $OK_CNT FAIL $FAIL_CNT SKIP $SKIP_CNT TOTAL $TOTAL_CASE"
+if [ $FAIL_CNT -ne 0 ]; then
+    exit 1
+fi
 exit 0

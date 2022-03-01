@@ -72,10 +72,10 @@ void recog_func_attr(struct kp_file *f, int i, kpstr_t *nm, int *cnt)
 		get_type_args(cline(f, i), &func_nm, &func_attr);
 		if(!kpstrcmpz(&func_attr, "@function")) {
 			if(func_nm.l > nm->l)
-				remove_cold_hot_suffix(&func_nm);    /* remove .cold. / .hot. */
+				remove_cold_suffix(&func_nm);    /* remove .cold */
 
 			if(!kpstrcmp(&func_nm, nm))         /* verify name matches */
-				++(*cnt);  
+				++(*cnt);
 		}
 	}
 }

@@ -106,7 +106,7 @@ struct cblock {
 
 void get_token(char **str, kpstr_t *x);
 void __get_token(char **str, kpstr_t *x, const char *delim);
-void remove_cold_hot_suffix(kpstr_t *nm);
+void remove_cold_suffix(kpstr_t *nm);
 
 int is_function_start(struct kp_file *f, int l, kpstr_t *nm);
 int is_function_end(struct kp_file *f, int l, kpstr_t *nm);

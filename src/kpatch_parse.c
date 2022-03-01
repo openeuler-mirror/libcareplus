@@ -78,17 +78,15 @@ void get_token(char **str, kpstr_t *x)
 	__get_token(str, x, delim);
 }
 
-/* remove .cold. / .hot. in function name */
-void remove_cold_hot_suffix(kpstr_t *nm)
+/* remove .cold in function name */
+void remove_cold_suffix(kpstr_t *nm)
 {
 	if(!nm->s)
 		return;
-	
-	char *suffix_loc = strstr(nm->s, ".cold.");
-	if(!suffix_loc)
-		suffix_loc = strstr(nm->s, ".hot.");
+
+	char *suffix_loc = strstr(nm->s, ".cold");
 	if(suffix_loc)
-		nm->l = suffix_loc - nm->s;			/* remove .cold. / .hot. */
+		nm->l = suffix_loc - nm->s;			/* remove .cold */
 }
 
 /* ------------------------------  as directives parsing ---------------------------------- */
@@ -790,7 +788,7 @@ int is_function_end(struct kp_file *f, int l, kpstr_t *nm)
 	get_token(&s, &nm2);
 
 	if(nm2.l > nm->l)
-		remove_cold_hot_suffix(&nm2);   /* remove .cold. / .hot. */
+		remove_cold_suffix(&nm2);   /* remove .cold */
 
 	if (kpstrcmp(nm, &nm2)) /* verify name matches */
 		return 0;
