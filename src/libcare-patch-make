@@ -20,7 +20,7 @@ install with specified DESTDIR.
 		working on patch utils.
   -d --destdir	specify variable makefile system uses to specify destination
 		directory for the installation
-  -i --id>-give this patch an unique id (less than 7 char)
+  -i --id	give this patch an unique id (less than 7 char)
   -b --buildid	give this patch an unique build-id
   -j --jobs 	specify variable makefile system jobs of compile, for example
   		`make -j 4` is startup `4` jobs to compile.

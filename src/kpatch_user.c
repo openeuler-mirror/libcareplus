@@ -376,7 +376,6 @@ static int usage(const char *err)
 	fprintf(stderr, "  patch  - apply patch to a user-space process\n");
 	fprintf(stderr, "  unpatch- unapply patch from a user-space process\n");
 	fprintf(stderr, "  info   - show info on applied patches\n");
-	fprintf(stderr, "  server - listen on a unix socket for commands\n");
 	return -1;
 }
 
