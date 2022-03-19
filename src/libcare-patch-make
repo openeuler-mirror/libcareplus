@@ -53,9 +53,9 @@ prepare_env() {
 	LPMAKE_PATCHED_DIR="${LPMAKE_PATCHED_DIR-$PWD/.lpmaketmp/patched}"
 	LPMAKE_PATCHROOT="${LPMAKE_PATCHROOT-$PWD/patchroot}"
 
-        LIBCARE_CC=$CC
-        SYMBOLINK_CC=$(which cc)
-        REAL_CC=$(realpath $SYMBOLINK_CC)
+	LIBCARE_CC=$CC
+	SYMBOLINK_CC=$(which cc)
+	REAL_CC=$(realpath $SYMBOLINK_CC)
 
 	export LPMAKE_ORIGINAL_DIR LPMAKE_PATCHED_DIR LPMAKE_PATCHROOT
 	mkdir -p "$LPMAKE_ORIGINAL_DIR" "$LPMAKE_PATCHED_DIR" "$LPMAKE_PATCHROOT"
@@ -83,24 +83,30 @@ restore_origs() {
 
 trap "restore_origs" 0
 
-change_qemu_ld_flags() {
-        qemu_ld_flags=$(grep "^QEMU_LDFLAGS=" config-host.mak)
-        ret=$(echo $qemu_ld_flags | grep "\-Wl,-q")
-        if [[ "$ret" == "" ]];then
-                qemu_ld_flags="${qemu_ld_flags} -Wl,-q"
-                echo "change QEMU_LDFLAGS to '${qemu_ld_flags}'"
-                sed -i "/^QEMU_LDFLAGS=/c\\${qemu_ld_flags}" config-host.mak
-        fi
+replace_qemu_ld_flags() {
+	local qemu_ld_flags_old=$1
+	ret=$(echo $qemu_ld_flags_old | grep "\-Wl,-q")
+	if [[ "$ret" == "" ]]; then
+		local qemu_ld_flags="${qemu_ld_flags_old} -Wl,-q"
+		echo "replace QEMU_LDFLAGS to '${qemu_ld_flags}'"
+		sed -i "/^QEMU_LDFLAGS=/c\\${qemu_ld_flags}" config-host.mak
+	fi
+}
+
+recover_qemu_ld_flags() {
+	local qemu_ld_flags=$1
+	echo "recover QEMU_LDFLAGS to '${qemu_ld_flags}'"
+	sed -i "/^QEMU_LDFLAGS=/c\\${qemu_ld_flags}" config-host.mak
 }
 
 replace_cc_symbolink() {
-        unlink $SYMBOLINK_CC
-        ln -s $LIBCARE_CC $SYMBOLINK_CC
+	unlink $SYMBOLINK_CC
+	ln -s $LIBCARE_CC $SYMBOLINK_CC
 }
 
 recover_cc_symbolink() {
-        unlink $SYMBOLINK_CC
-        ln -s $REAL_CC $SYMBOLINK_CC
+	unlink $SYMBOLINK_CC
+	ln -s $REAL_CC $SYMBOLINK_CC
 }
 
 build_objects() {
@@ -116,9 +122,6 @@ build_objects() {
 
 	export KPATCH_STAGE=original
 	export KPCC_DBGFILTER_ARGS=""
-
-        #add '-Wl,-q' to LD_FLAGS
-        change_qemu_ld_flags
 
 	echo "${green}BUILDING ORIGINAL CODE${reset}"
 	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
@@ -146,6 +149,10 @@ build_objects() {
 	export KPATCH_STAGE=patched
 	export KPCC_APPEND_ARGS="-Wl,-q"
 
+	qemu_ld_flags_bak=$(grep "^QEMU_LDFLAGS=" config-host.mak)
+	#add '-Wl,-q' to LD_FLAGS
+	replace_qemu_ld_flags "$qemu_ld_flags_bak"
+
 	echo "${green}BUILDING PATCHED CODE${reset}"
 	make $LPMAKEFILE $JOBS_MAKE >$MAKE_OUTPUT 2>&1
 
@@ -153,6 +160,9 @@ build_objects() {
 	make $LPMAKEFILE $JOBS_MAKE install			\
 		"$destdir=$LPMAKE_PATCHED_DIR"			\
 		>$MAKE_OUTPUT 2>&1
+
+	# recover LD_FLAGS
+	recover_qemu_ld_flags "$qemu_ld_flags_bak"
 }
 
 build_kpatches() {
@@ -264,16 +274,16 @@ main() {
 
 	prepare_env
 
-        # replace cc
-        replace_cc_symbolink
+	# replace cc
+	replace_cc_symbolink
 
 	if test -z "$only_update"; then
 		build_objects "$@"
 	fi
 	build_kpatches
 
-        # recover cc
-        recover_cc_symbolink
+	# recover cc
+	recover_cc_symbolink
 }
 
 main "$@"
