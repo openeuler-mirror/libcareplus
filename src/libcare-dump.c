@@ -45,6 +45,7 @@ void usage()
 
 int kpatch_dump_kpatch_header(const char *input_file)
 {
+    int rv;
     int fdi = -1;
     int ret = -1;
     int elf_size;
@@ -67,7 +68,12 @@ int kpatch_dump_kpatch_header(const char *input_file)
         goto cleanup;
     }
 
-    ret = read(fdi, &kp, sizeof(struct kpatch_file));
+    rv = read(fdi, &kp, sizeof(struct kpatch_file));
+    if (rv <= 0) {
+        printf("Read kpatch file '%s' failed.\n", input_file);
+        goto cleanup;
+    }
+    ret = 0;
     printf("%-25s %s\n", "Patch Name:", input_file);
     printf("%-25s %s\n", "Magic:", kp.magic);
     printf("%-25s %s\n", "Patch id:", kp.id);
