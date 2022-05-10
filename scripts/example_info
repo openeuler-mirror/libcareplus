@@ -1,0 +1,59 @@
+#!/bin/bash
+
+KP_PROJECT=qemu
+KP_PROJECT_FORMAT=rpm
+KP_PROJECT_BUILD_ROOT=/var/libcareplus/qemu/rpmbuild
+KP_PROJECT_ORIG_RPMS=/var/libcareplus/qemu/qemu-6.2.0-29.oe2203
+KP_PROJECT_SPEC=qemu.spec
+
+# we choose plist filename as patch-id, eg: 220411 here
+KP_PROJECT_PLIST_FILE=/var/libcareplus/qemu/patch001/220506.plist
+KP_PROJECT_DIR=$KP_PROJECT_BUILD_ROOT/BUILD/qemu-6.2.0
+KP_PROJECT_BUILD_DIR=$KP_PROJECT_DIR/build/x86_64-softmmu
+KP_PROJECT_BUILD_ID=61fcf129b23f05a623e0bf696a03d3348f366348
+KP_SANITY_CHECK_STRICTLY=no
+KP_PROJECT_SOURCE_URL=
+KP_PROJECT_SOURCE=qemu-6.2.0-29.oe2203.src.rpm
+KP_PROJECT_BINARY=qemu-6.2.0-29.oe2203.x86_64.rpm
+
+KP_PROJECT_PREBUILT=build.orig-$KP_PROJECT_BINARY.tgz
+KP_PROJECT_PATCH=kpatch-${KP_PROJECT_BINARY%.*}.tgz
+KP_RPMBUILD_FLAGS="'--define=dist .oe2203'"
+#KP_RPM_REPOS="--enablerepo=base"
+
+
+KP_INSTALL_FILES="
+/qemu-system-x86_64 /usr/libexec/qemu-kvm
+"
+
+KPATCH_ASM_DIR=$KP_PROJECT_BUILD_ROOT/asmdir
+export KPATCH_ASM_DIR
+
+KPCC_PATCH_ARGS="--force-gotpcrel;--os=rhel6;--ignore-changes=banner,compilation"
+export KPCC_PATCH_ARGS
+
+KPCC_DBGFILTER_ARGS="--dbg-filter;--dbg-filter-eh-frame;--dbg-filter-gcc-except-table;--os=rhel6"
+export KPCC_DBGFILTER_ARGS
+
+kp_prebuild_hook() {
+	if test -z "$(command -v tar)"; then
+		echo "No tar command, Please install it first"
+		exit 1
+	fi
+	if test -z "$(command -v rpmbuild)"; then
+		echo "No rpmbuild command, Please install it first"
+		exit 1
+	fi
+}
+
+kp_build_hook() {
+	:
+}
+
+kp_prepare_test_binaries() {
+	:
+}
+
+kp_patch_test() {
+	:
+}

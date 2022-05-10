@@ -1,4 +1,8 @@
 #!/bin/bash
+# make kpatch'es for the RPM-based packages using spec file.
+# Each package contains the config file: info in their project directory,
+# like /var/libcareplus/qemu/info
+#
 
 echo '+ set -x'
 set -x
@@ -15,10 +19,10 @@ die() {
 }
 
 usage() {
-	echo "Usage: build [--prebuild] [--help] [--arch ARCH] DIR"
+	echo "Makes kpatch'es for the RPM-based packages using spec file."
+	echo "Usage: libcare-pkgbuild [--prebuild] [--test] [--help] DIR"
 	echo "    -p|--prebuild     prebuild project for further use"
 	echo "    -t|--test         run unit and stress tests"
-	echo "    -a|--arch ARCH    target architecture(x86_64 by default)"
 	echo "    -h|--help         print this message"
 	echo "    DIR               directory with project's info file and other resources"
 }
@@ -26,7 +30,6 @@ usage() {
 prepare() {
 	# Parse cmdline args
 	ACTION=build
-	ARCH=x86_64
 	PDIR=
 	while [ "$1" != "" ]; do
 		case $1 in
@@ -35,10 +38,6 @@ prepare() {
 			;;
 		-t|--test)
 			ACTION=test
-			;;
-		-a|--arch)
-			shift
-			ARCH=$1
 			;;
 		-h|--help)
 			usage
@@ -56,11 +55,8 @@ prepare() {
 		shift
 	done
 
-	# Export env vars that are needed during the build
-	SCRIPTS="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-	LIBCARE_DIR="${LIBCARE_DIR:-$SCRIPTS/..}"
-	KPATCH_PATH="${KPATCH_PATH:-$LIBCARE_DIR/src}"
-	export LIBCARE_DIR KPATCH_PATH
+	KPATCH_PATH="$(dirname "$( which libcare-cc )" )"
+	export KPATCH_PATH
 	export OLDPATH=$PATH
 	export KPATCH_PASSTHROUGH_ASM=1
 	CPUS=`cat /proc/cpuinfo | grep ^processor | wc -l`
@@ -70,12 +66,13 @@ prepare() {
 	# Obtain information about the project
 	source $PDIR/info
 
-	mkdir -p /kcdata
+	ROOT_ORIGINAL=$PDIR/root.original
+	ROOT_PATCHED=$PDIR/root.patched
 }
 
 clean_dirs() {
 	echo "  cleaning up"
-	rm -rf $KP_PROJECT_BUILD_ROOT /root/root.original /root/root.patched
+	rm -rf $KP_PROJECT_BUILD_ROOT $ROOT_ORIGINAL $ROOT_PATCHED
 }
 
 kp_prepare_env_hook() {
@@ -86,17 +83,15 @@ kp_prepare_env_hook() {
 kp_pack_prebuilt() {
 	echo "  packing prebuilt $KP_PROJECT into $KP_PROJECT_PREBUILT"
 	pushd $KP_PROJECT_BUILD_ROOT
-		tar -zcf /kcdata/$KP_PROJECT_PREBUILT		\
+		tar -zcf $PDIR/$KP_PROJECT_PREBUILT		\
 			$KP_PROJECT_BUILD_ROOT			\
-			/root/root.original
+			$ROOT_ORIGINAL
 	popd
 }
 
 kp_unpack_prebuilt() {
 	echo "  unpacking prebuilt $KP_PROJECT into $KP_PROJECT_PREBUILT"
-	tar -xf /kcdata/$KP_PROJECT_PREBUILT -C /
-
-	yum-builddep -d 1 -y $KP_PROJECT_BUILD_ROOT/SPECS/$KP_PROJECT_SPEC
+	tar -xf $PDIR/$KP_PROJECT_PREBUILT -C /
 }
 
 kp_prepare_source_raw() {
@@ -108,38 +103,32 @@ kp_prepare_source_raw() {
 }
 
 kp_download_source_rpm() {
-	mkdir -p /kcdata
 	if test -n "$KP_PROJECT_SOURCE_URL"; then
-		curl $KP_PROJECT_SOURCE_URL -o /kcdata/$KP_PROJECT_SOURCE
+		curl $KP_PROJECT_SOURCE_URL -o $KP_PROJECT_ORIG_RPMS/$KP_PROJECT_SOURCE
 	else
-		yumdownloader --source --destdir /kcdata ${KP_PROJECT_SOURCE%.src.rpm}
+		yumdownloader --source --destdir $KP_PROJECT_ORIG_RPMS ${KP_PROJECT_SOURCE%.src.rpm}
 	fi
 }
 
 kp_prepare_source_rpm() {
-	rm -rf $HOME/deps
+	rm -rf $PDIR/deps
 	eval yum-builddep -d 1 -y $KP_RPM_REPOS				\
-			--downloadonly --downloaddir=$HOME/deps		\
-			/kcdata/$KP_PROJECT_SOURCE
+			--downloadonly --downloaddir=$PDIR/deps		\
+			$KP_PROJECT_ORIG_RPMS/$KP_PROJECT_SOURCE
 	mkdir -p $KP_PROJECT_BUILD_ROOT
 	rpm -qa > $KP_PROJECT_BUILD_ROOT/all-packages.txt
-	ls $HOME/deps > $KP_PROJECT_BUILD_ROOT/dependencies.txt
-	eval yum-builddep -d 1 -y	$KP_RPM_REPOS			\
-			/kcdata/$KP_PROJECT_SOURCE
+	ls $PDIR/deps > $KP_PROJECT_BUILD_ROOT/dependencies.txt
+	eval yum-builddep -d 1 -y $KP_RPM_REPOS			\
+			$KP_PROJECT_ORIG_RPMS/$KP_PROJECT_SOURCE
 
 	sed -i 's/.rpm$//g' $KP_PROJECT_BUILD_ROOT/dependencies.txt
 
-	rpm -ivh /kcdata/$KP_PROJECT_SOURCE \
+	rpm -ivh $KP_PROJECT_ORIG_RPMS/$KP_PROJECT_SOURCE \
 		--define "_topdir $KP_PROJECT_BUILD_ROOT"
 }
 
-kp_prepare_source_deb() {
-	echo "deb support is not implemented yet"
-	exit 1
-}
-
 kp_prepare_source() {
-	if ! test -f /kcdata/$KP_PROJECT_SOURCE; then
+	if ! test -f $KP_PROJECT_ORIG_RPMS/$KP_PROJECT_SOURCE; then
 		echo "  downloading source for $KP_PROJECT"
 		kp_download_source_$KP_PROJECT_FORMAT
 	fi
@@ -147,12 +136,60 @@ kp_prepare_source() {
 	kp_prepare_source_$KP_PROJECT_FORMAT
 }
 
+patch_list_apply() {
+	SRC_DIR=$(cd "$(dirname "$1")" && pwd)/$(basename "$1")
+	PATCH_DIR=$(cd "$(dirname "$KP_PROJECT_PLIST_FILE")" && pwd)
+	PLIST=$PATCH_DIR/$(basename "$KP_PROJECT_PLIST_FILE")
+	PATCH_ID=$(echo $(basename "$KP_PROJECT_PLIST_FILE") | awk -F. '{print $1}')
+	if test -z "$PATCH_ID"; then
+		echo "Failed to get patch-id. Please check plist filename: $KP_PROJECT_PLIST_FILE"
+		exit 1
+	fi
+	TEMP_PLIST=/tmp/build.kpatch/tmpplist
+
+	if [ ! -f $PLIST ]; then
+		echo "File $PLIST not found"
+		exit 1;
+	fi
+
+	echo "patching $PWD with patches from $PLIST"
+
+	pushd $SRC_DIR # go to the directory with sources to be patched
+
+	#in case we don't have a newline in plist
+	cat $PLIST > $TEMP_PLIST
+	echo -e "\n" >> $TEMP_PLIST
+
+	# iterate through patches in PLIST
+	while read NAME
+	do
+		COMMENT=`echo $NAME | cut -c1`
+		if [ "$COMMENT" == "#" ]; then
+			continue;
+		fi
+
+		if [ -z "${NAME}" ]; then
+			continue;
+		fi
+
+		echo "Applying patch $NAME"
+		patch -p1 -u --fuzz=0 --batch < $PATCH_DIR/$NAME
+		if [ $? != 0 ]; then
+			echo "Failed applying patch $NAME"; popd; rm $TEMP_PLIST; exit 1
+		else
+			echo "Successfully applied patch $NAME"
+		fi
+	done < $TEMP_PLIST
+	rm $TEMP_PLIST
+
+	popd
+}
+
 kp_patch_source() {
 	echo "  patching project"
-	PATCH_DIR=$LIBCARE_DIR/patches
 	#patch_list_apply requires this dir
 	mkdir -p /tmp/build.kpatch
-	$SCRIPTS/patch_list_apply $KP_PROJECT_DIR $PDIR/plist $PATCH_DIR
+	patch_list_apply $KP_PROJECT_DIR
 }
 
 kp_prebuild_rpm() {
@@ -170,25 +207,17 @@ kp_prebuild_rpm() {
 }
 
 _kp_install_orig_rpm() {
-	for rpmfile in $KP_ORIG_RPMS; do
-		pkgname="$(basename $rpmfile)"
-		pkgname="${pkgname%%.rpm}"
-		eval yumdownloader --enablerepo=base-debuginfo $KP_RPM_REPOS \
-			--destdir=$HOME/rpms.orig $pkgname
-	done
-
-	rpm	--force -i $HOME/rpms.orig/*.rpm \
-		--root=$HOME/root.original \
+	rpm	--force -i $1 \
+		--root=$ROOT_ORIGINAL \
 		--nodeps --noscripts
 }
 
 kp_install_orig_rpm() {
-	_kp_install_orig_rpm
+	for orig_rpm in $(ls $KP_PROJECT_ORIG_RPMS | grep -v $KP_PROJECT_SOURCE); do
+		_kp_install_orig_rpm $KP_PROJECT_ORIG_RPMS/$orig_rpm
+	done
 }
 
-kp_prebuild_hook() {
-	:
-}
 
 kp_prebuild() {
 	echo "  prebuilding $KP_PROJECT"
@@ -200,25 +229,25 @@ de_offset_syms() {
 	local binary=$1
 
 	readelf -WSs $binary > $binary.symlist 2>/dev/null
-	$SCRIPTS/de-offset-syms.awk $binary.symlist > $binary.symlist.tmp
+	de-offset-syms.awk $binary.symlist > $binary.symlist.tmp
 	sort $binary.symlist.tmp > $binary.symlist
 	rm -f $binary.symlist.tmp
 }
 
 kp_sanity_check() {
-	pushd $HOME/root.patched
+	pushd $ROOT_PATCHED
 		local targets="$(find . -perm /0111 -type f)"
 	popd
 
 	local failed=""
 	for target in $targets; do
-		local original="$HOME/root.original/usr/lib/debug/$target.debug"
-		local patched="$HOME/root.patched/$target"
+		local original=`ls $ROOT_ORIGINAL/usr/lib/debug/${target}*.debug`
+		local patched="$ROOT_PATCHED/$target"
 		local alloweddiff="$PDIR/$(basename "$target").symlist.diff"
 
 		de_offset_syms $original
 		if test ! -s $original.symlist; then
-			original="$HOME/root.original/$target"
+			original="$ROOT_ORIGINAL/$target"
 			de_offset_syms $original
 		fi
 
@@ -241,7 +270,11 @@ kp_sanity_check() {
 	done
 
 	if test -n "$failed"; then
-		die "Failed sanity check for $failed"
+		if test "$KP_SANITY_CHECK_STRICTLY" == "yes"; then
+			die "Failed sanity check for $failed"
+		else
+			echo "[Warning] Failed sanity check for $failed"
+		fi
 	fi
 }
 
@@ -308,7 +341,7 @@ kp_check_missing_files() {
 }
 
 kp_install_generic() {
-	local root_patched="$HOME/root.patched"
+	local root_patched="$ROOT_PATCHED"
 
 	kp_install_files $KP_PROJECT_BUILD_DIR \
 		$root_patched \
@@ -318,13 +351,9 @@ kp_install_generic() {
 }
 
 kp_install_rpm() {
-	kp_install_orig_rpm
 	kp_install_generic
 }
 
-kp_build_hook() {
-	:
-}
 
 kp_build() {
 	echo "  building $KP_PROJECT"
@@ -340,19 +369,22 @@ kp_build() {
 kp_gen_kpatch() {
 	echo "  generating kpatches"
 
-	pushd $HOME/root.patched
+	pushd $ROOT_PATCHED
 		targets=$(find . -perm /0111 -type f)
 	popd
 
-	rm -rf $HOME/${KP_PROJECT_PATCH%.*}
-	mkdir $HOME/${KP_PROJECT_PATCH%.*}
+	rm -rf $PDIR/${KP_PROJECT_PATCH%.*}
+	mkdir $PDIR/${KP_PROJECT_PATCH%.*}
 
 	local no_patches=1
 
 	for t in $targets; do
-		local debug="$HOME/root.original/usr/lib/debug/$t.debug"
-		local patched="$HOME/root.patched/$t"
+		local debug=`ls $ROOT_ORIGINAL/usr/lib/debug/${t}*.debug`
+		local patched="$ROOT_PATCHED/$t"
 		local buildid=$(eu-readelf -n $debug | sed -n '/Build ID:/ { s/.* //; p }')
+		if test -n "$KP_PROJECT_BUILD_ID"; then
+			buildid=$KP_PROJECT_BUILD_ID
+		fi
 		if test -z "$buildid"; then
 			continue
 		fi
@@ -363,7 +395,7 @@ kp_gen_kpatch() {
 
 		chmod u+w $debug $patched
 
-		eu-unstrip "$HOME/root.original/$t" "$debug"
+		eu-unstrip "$ROOT_ORIGINAL/$t" "$debug"
 
 		$KPATCH_PATH/kpatch_strip --strip $patched $patched.kpstripped
 		cp $patched.kpstripped $patched.relfixup
@@ -372,8 +404,8 @@ kp_gen_kpatch() {
 		/usr/bin/strip --strip-unneeded $patched.stripped
 		cp $patched.stripped $patched.undolink
 		$KPATCH_PATH/kpatch_strip --undo-link $debug $patched.undolink
-		$KPATCH_PATH/kpatch_make -b "$buildid" $patched.undolink -o $patched.kpatch
-		cp $patched.kpatch $HOME/${KP_PROJECT_PATCH%.*}/$buildid.kpatch
+		$KPATCH_PATH/kpatch_make -b "$buildid" -i "$PATCH_ID" $patched.undolink -o $patched.kpatch
+		cp $patched.kpatch $PDIR/${KP_PROJECT_PATCH%.*}/$buildid.kpatch
 		no_patches=0
 	done
 
@@ -384,9 +416,7 @@ kp_gen_kpatch() {
 
 kp_pack_patch() {
 	echo "  packing patch for $KP_PROJECT into $KP_PROJECT_PATCH"
-	pushd $KP_PROJECT_BUILD_DIR
-		tar -zcf /kcdata/$KP_PROJECT_PATCH $HOME/${KP_PROJECT_PATCH%.*}
-	popd
+	tar -zcf $PDIR/$KP_PROJECT_PATCH $PDIR/${KP_PROJECT_PATCH%.*}
 }
 
 kp_unpack_patch() {
@@ -411,11 +441,6 @@ kp_unpack_patch() {
 
 	rm -fr $tmpdir
 }
-
-kp_mark_tests_fail() {
-	touch /kcdata/Tests-FAIL
-}
-
 overwrite_utils() {
 	TMPBIN=$(mktemp -d --tmpdir)
 
