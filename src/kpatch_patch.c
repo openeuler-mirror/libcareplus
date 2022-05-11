@@ -372,9 +372,9 @@ object_apply_patch(struct object_file *o)
 		kp->jmp_offset = sz;
 		kpdebug("Jump table %d bytes for %d syms at offset 0x%x\n",
 			o->jmp_table->size, undef, kp->jmp_offset);
-		sz = ROUND_UP(sz + o->jmp_table->size, 4096);
+		sz = ROUND_UP(sz + o->jmp_table->size, PAGE_SIZE);
 	}
-	sz = ROUND_UP(sz, 4096);
+	sz = ROUND_UP(sz, PAGE_SIZE);
 
 	/* kpatch elf */
 	kp->elf_offset = sz;
@@ -386,7 +386,7 @@ object_apply_patch(struct object_file *o)
 	kp->user_undo = sz;
 	sz = ROUND_UP(sz + HUNK_SIZE * o->ninfo, 16);
 
-	sz = ROUND_UP(sz, 4096);
+	sz = ROUND_UP(sz, PAGE_SIZE);
 	kp->kpatch_total_mem_sz = sz;
 
 	/*
