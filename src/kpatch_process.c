@@ -682,7 +682,6 @@ process_list_threads(kpatch_process_t *proc,
 			t = realloc(pids, *alloc * sizeof(*pids));
 			if (t == NULL) {
 				kplogerror("Failed to (re)allocate memory for pids\n");
-				closedir(dir);
 				goto dealloc;
 			}
 
