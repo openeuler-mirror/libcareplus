@@ -465,8 +465,6 @@ kpatch_arch_ptrace_waitpid(kpatch_process_t *proc,
 
 		/* TODO: fix the latter by SINGLESTEPping such a thread with
 		 * the original instruction in place */
-		kperr("the thread ran out: %d, pc= %llx, expected = %lx\n", pid,
-		      regs.pc, pctx->execute_until);
 		errno = ESRCH;
 		return -1;
 	}
