@@ -56,7 +56,7 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
 		unsigned long val;
 		void *loc, *loc2;
 
-		if (r->r_offset < 0 || r->r_offset >= tshdr->sh_size) {
+		if (r->r_offset >= tshdr->sh_size) {
 			kperr("Relocation offset for section '%s'"
 			      " is at 0x%lx beyond the section size 0x%lx\n",
 			      scnname, r->r_offset, tshdr->sh_size);
