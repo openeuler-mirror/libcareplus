@@ -1,0 +1,15 @@
+--- ./new_var.c	2022-02-10 19:40:17.948981115 +0800
++++ ./new_var.c	2022-02-10 20:02:38.774536002 +0800
+@@ -7,9 +7,11 @@
+ 	printf("Hello. <newly_added_var=0x%08x>\n", var);
+ }
+ 
++int newly_added_var = 0x20220210;
+ void print_greetings(void)
+ {
+-	printf("Hello. This is an UNPATCHED version\n");
++	newly_added_var = 0x2022 << 16 | 0x2202;
++	print_greetings_patched(newly_added_var);
+ }
+ 
+ int main()
