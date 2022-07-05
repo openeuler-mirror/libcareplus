@@ -109,6 +109,8 @@ recover_cc_symbolink() {
 	ln -s $REAL_CC $SYMBOLINK_CC
 }
 
+trap "recover_cc_symbolink" SIGINT SIGTERM SIGQUIT
+
 build_objects() {
 	restore_origs
 
