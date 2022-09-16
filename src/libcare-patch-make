@@ -78,7 +78,7 @@ restore_origs() {
 			{ vers[fname] = origfname; }
 	}
 	END { for (f in vers) system("mv " vers[f] " " f); }
-'
+' > /dev/null 2>&1
 }
 
 trap "restore_origs" 0
