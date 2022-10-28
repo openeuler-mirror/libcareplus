@@ -10,7 +10,9 @@
 #define __KPATCH_PTRACE_H__
 
 #include <sys/user.h>
-
+#ifdef __riscv
+#include <asm/ptrace.h>
+#endif
 #include "list.h"
 
 struct kpatch_ptrace_ctx {
@@ -123,8 +125,13 @@ kpatch_process_memcpy(kpatch_process_t *proc,
 		      unsigned long src,
 		      size_t size);
 
+#ifdef __riscv
+#define BREAK_INSN_LENGTH	4
+#define BREAK_INSN		{ 0x73, 0x00, 0x10, 0x00 }
+#else
 #define BREAK_INSN_LENGTH	1
 #define BREAK_INSN		{0xcc}
+#endif
 
 #define SEC_TO_MSEC	1000
 #define MSEC_TO_NSEC	1000000
