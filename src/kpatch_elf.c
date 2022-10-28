@@ -620,6 +620,11 @@ elf_object_load_dynsym(struct object_file *o)
 		goto out_free;
 	}
 
+#ifdef __riscv
+	/* TODO: why riscv has different behaviour??? */
+	symtab_addr += o->load_offset;
+#endif
+
 	rv = kpatch_process_mem_read(o->proc,
 				     symtab_addr,
 				     buffer,
