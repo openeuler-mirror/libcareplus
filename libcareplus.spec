@@ -1,24 +1,25 @@
-Version: 0.1.4
+%define with_selinux 1
+
+Version: 1.0.1
 Name: libcareplus
 Summary: LibcarePlus tools
-Release: 2%{?dist}
+Release: 1
 Group: Applications/System
 License: GPLv2
 Url: https://gitee.com/openeuler/libcareplus
-Source0: %{name}-%{version}.tar.gz
-ExclusiveArch: x86_64
-BuildRequires: elfutils-libelf-devel libunwind-devel
+Source0: https://gitee.com/openeuler/libcareplus/release/download/v%{version}/%{name}-%{version}.tar.gz
+
+BuildRequires: elfutils-libelf-devel libunwind-devel gcc systemd
 
 %if 0%{with selinux}
 BuildRequires: checkpolicy
 BuildRequires: selinux-policy-devel
-BuildRequires: /usr/share/selinux/devel/policyhelp
 %endif
 
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root-%(%{__id_u} -n)
 
 %if 0%{with selinux}
-Requires:      libcare-selinux = %{version}-%{release}
+Requires:      libcareplus-selinux = %{version}-%{release}
 %endif
 
 %description
@@ -50,7 +51,9 @@ LibcarePlus devel files.
 %autopatch -p1
 
 %build
-
+cd src
+sh ./config
+cd ../
 make -C src
 %if 0%{with selinux}
 make -C dist/selinux
@@ -71,6 +74,9 @@ make -C dist/selinux install \
 
 
 install -m 0644 -D dist/libcare.preset %{buildroot}%{_presetdir}/90-libcare.preset
+install -m 0500 scripts/pkgbuild %{buildroot}%{_bindir}/libcare-pkgbuild
+install -m 0500 scripts/de-offset-syms.awk %{buildroot}%{_bindir}/de-offset-syms.awk
+install -m 0644 -D scripts/example_info %{buildroot}/usr/share/libcareplus/qemu_example_info
 
 %pre
 /usr/sbin/groupadd libcare -r 2>/dev/null || :
@@ -88,11 +94,16 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root)
 %{_bindir}/libcare-cc
 %{_bindir}/libcare-patch-make
+%{_bindir}/libcare-dump
 %{_bindir}/kpatch_gensrc
 %{_bindir}/kpatch_strip
 %{_bindir}/kpatch_make
 %{_bindir}/libcare-server
 %{_bindir}/libcare-client
+%{_bindir}/libcare-pkgbuild
+%{_bindir}/de-offset-syms.awk
+/usr/share/libcareplus/qemu_example_info
+
 %if 0%{with selinux}
 
 %files selinux
@@ -134,8 +145,8 @@ exit 0
 %endif
 
 %changelog
-* Mon Apr 26 2021 Chuan Zheng <zhengchuan@huawei.com>
-- gensrc: skip vector instruction in str_do_gotpcrel
+* Thu Nov 24 2022 yezengruan <yezengruan@huawei.com> 1.0.1-1
+- libcareplus update to version 1.0.1
 
-* Tue Dec 8 2020 Ying Fang <fangying1@huawei.com>
+* Tue Dec 08 2020 Ying Fang <fangying1@huawei.com> - 0.1.4-1
 - Init the libcareplus package spec

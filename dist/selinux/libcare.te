@@ -49,6 +49,8 @@ allow libcare_t libcare_file_t: file exec_file_perms;
 allow libcare_t libcare_file_t: dir list_dir_perms;
 allow libcare_t libcare_file_t: lnk_file read_lnk_file_perms;
 
+allow init_t var_run_t:lnk_file create;
+
 # to read patient's /proc entries and be able to attach to it
 allow libcare_t self: capability { dac_override dac_read_search sys_ptrace };
 
