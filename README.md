@@ -17,14 +17,14 @@ LibcarePlus的发展目标是对x86_64和aarch64等常见体系结构提供用�
 
 #### 安装教程
 
-请参考`LibcarePlus安装指南`来完成LibcarePlus的安装。
+请参考[LibcarePlus安装指南](https://gitee.com/openeuler/docs/blob/master/docs/zh/docs/Virtualization/LibcarePlus.md#安装-libcareplus)来完成LibcarePlus的安装。
 
 #### 使用说明
 
 请参考：
 
-* LibcarePlus热补丁制作指导
-* LibcarePlus热补丁应用指导
+* [LibcarePlus热补丁制作指导](https://gitee.com/openeuler/docs/blob/master/docs/zh/docs/Virtualization/LibcarePlus.md#制作-libcareplus-热补丁)
+* [LibcarePlus热补丁应用指导](https://gitee.com/openeuler/docs/blob/master/docs/zh/docs/Virtualization/LibcarePlus.md#应用-libcareplus-热补丁)
 
 来完成补丁的制作和打补丁的操作流程。
 
