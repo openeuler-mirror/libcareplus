@@ -82,7 +82,7 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 	char *symname, *tmp;
 
 	/* Do nothing for Local TLS symbol */
-	if (GELF_ST_BIND(sym->st_info) != STB_LOCAL)
+	if (GELF_ST_BIND(sym->st_info) == STB_LOCAL)
 		return 0;
 
 	symname = (char *)kpatch_objinfo_strptr(patch,
