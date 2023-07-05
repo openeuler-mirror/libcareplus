@@ -1,5 +1,5 @@
 /******************************************************************************
- * 2023.07.04 - riscv64: compose instructors with immediate
+ * 2023.07.04 - riscv64_imm: set instructor immediate
  * ISCAS ISRC Tarsier. <zhangkai@iscas.ac.cn>
  ******************************************************************************/
 

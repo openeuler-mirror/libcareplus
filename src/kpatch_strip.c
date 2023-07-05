@@ -1,4 +1,7 @@
 /******************************************************************************
+ * 2023.07.05 - strip: add 2 arch hooks to verify patches during strip
+ * ISCAS ISRC Tarsier. <zhangkai@iscas.ac.cn>
+ *
  * 2021.10.12 - strip: settle libcare-dump output elf file can't be objdump bug
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
@@ -486,12 +489,9 @@ kpatch_fixup_rela_one(kpatch_objinfo *origbin,
 
 			break;
 		}
-#ifdef __riscv
+
 		/* deal with possible COPY dynamic relocs */
-		extern int kpatch_arch_fixup_rela_copy(kpatch_objinfo *origbin,
-		                                GElf_Sym *sym, const char *);
 		rv = kpatch_arch_fixup_rela_copy(origbin, sym, symname);
-#endif
 	}
 
 	if (secname) {
@@ -895,12 +895,9 @@ kpatch_undo_link(Elf *elf_origbin, Elf *elf_patch)
 		return -1;
 	}
 
-#ifdef __riscv
 	/* deal with original function address bias problem */
-	extern int kpatch_arch_fixup_addr_bias(kpatch_objinfo*, kpatch_objinfo*);
 	if (kpatch_arch_fixup_addr_bias(&origbin, &patch) == -1)
 		return -1;
-#endif
 
 	/* Copy section `sh_addr'eses */
 	if (kpatch_rel_copy_sections_addr(&origbin, &patch) < 0) {

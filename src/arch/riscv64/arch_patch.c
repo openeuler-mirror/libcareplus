@@ -23,7 +23,7 @@
 #include "include/kpatch_ptrace.h"
 #include "include/list.h"
 #include "include/kpatch_log.h"
-#include "riscv64.h"
+#include "riscv64_imm.h"
 
 /*
  * This flag is local, i.e. it is never stored to the

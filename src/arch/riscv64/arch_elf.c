@@ -1,3 +1,15 @@
+/******************************************************************************
+ * 2023.07.05 - riscv64: adapt various relocations and jump table
+ * ISCAS ISRC Tarsier. <zhangkai@iscas.ac.cn>
+ *
+ * 2021.10.11 - return: make every return properly other than direct-exit
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ *
+ * 2021.10.08 - kpatch_elf/arch_elf: enhance kpatch_elf and arch_elf code
+ * Huawei Technologies Co., Ltd. <zhengchuan@huawei.com>
+ ******************************************************************************/
+
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -15,7 +27,7 @@
 #include "include/kpatch_file.h"
 #include "include/kpatch_ptrace.h"
 #include "include/kpatch_log.h"
-#include "riscv64.h"
+#include "riscv64_imm.h"
 
 /*
  * In PCREL_LO12 relocation entity, its corresponding symbol's value
