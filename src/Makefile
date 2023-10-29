@@ -24,6 +24,8 @@ CFLAGS = $(CFLAGS_MISC) $(CFLAGS_WARN)
 ARCH := $(shell sh config; cat arch.desc)
 ifeq ($(ARCH),aarch64)
 VPATH = arch/aarch64
+else ifeq ($(ARCH),riscv64)
+VPATH = arch/riscv64
 else
 VPATH = arch/x86
 endif

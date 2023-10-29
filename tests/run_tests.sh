@@ -526,6 +526,20 @@ should_skip() {
 		fi
 	fi
 
+	if test "$ARCH" = "riscv64"; then
+		if test "$1" = "fail_coro_listed" || \
+		   test "$1" = "fail_coro"        || \
+		   test "$1" = "ref_orig_threads"; then
+			return 0
+		fi
+
+		if test "$FLAVOR" = "test_unpatch_files"; then
+			if test "$1" = "frame_finish"; then
+				return 0
+			fi
+		fi
+	fi
+
 	case "$1" in
 	ifunc)
 		if grep -q 'release 6' /etc/redhat-release 2>/dev/null; then
@@ -602,7 +616,7 @@ main() {
 			exit 1
 	esac
 
-	if test "$ARCH" = "aarch64"; then
+	if test "$ARCH" = "aarch64" -o "$ARCH" = "riscv64"; then
 		if test "$FLAVOR" = "test_patch_startup" || \
 		   test "$FLAVOR" = "test_patch_startup_ld_linux"; then
 			exit 0

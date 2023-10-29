@@ -227,3 +227,16 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 
 	return 0;
 }
+
+int
+kpatch_arch_fixup_rela_copy(kpatch_objinfo *origbin, GElf_Sym *s,
+		                    const char *symname)
+{
+	return 0;
+}
+
+int
+kpatch_arch_fixup_addr_bias(kpatch_objinfo *orig, kpatch_objinfo *patch)
+{
+	return 0;
+}

@@ -28,4 +28,12 @@ kpatch_arch_fixup_rela_update_tls(kpatch_objinfo *origbin,
 		GElf_Shdr *sh_text,
 		unsigned char *text);
 
+int
+kpatch_arch_fixup_rela_copy(kpatch_objinfo *origbin,
+		GElf_Sym *s,
+		const char *symname);
+
+int
+kpatch_arch_fixup_addr_bias(kpatch_objinfo *orig,
+		kpatch_objinfo *patch);
 #endif

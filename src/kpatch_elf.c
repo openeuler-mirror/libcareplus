@@ -620,6 +620,16 @@ elf_object_load_dynsym(struct object_file *o)
 		goto out_free;
 	}
 
+#ifdef __riscv
+	/*
+	 * TODO: Tested under OLK5.10 on RISC-V, after shared library loaded into
+	 * memory, their symbols address remain unchanged, that is they are the
+	 * same as their ELF files! On other arches, the address were modified to
+	 * the real memory address by OS. This should be tackled later.
+	 */
+	symtab_addr += o->load_offset;
+#endif
+
 	rv = kpatch_process_mem_read(o->proc,
 				     symtab_addr,
 				     buffer,

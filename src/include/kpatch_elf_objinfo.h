@@ -63,6 +63,15 @@ int _elf_getshdrstrndx(Elf  *elf, size_t *ndx);
 Elf_Scn *kpatch_objinfo_find_scn_by_name(kpatch_objinfo *oi,
 					 const char *name, GElf_Shdr *shdr);
 
+#ifdef __riscv
+/* only care TLSOFFSET relative type */
+static inline int
+kpatch_is_tls_rela(Elf64_Rela *rela)
+{
+    return (ELF64_R_TYPE(rela->r_info) == R_RISCV_TLS_TPREL32 ||
+            ELF64_R_TYPE(rela->r_info) == R_RISCV_TLS_TPREL64);
+}
+#else
 static inline int
 kpatch_is_tls_rela(Elf64_Rela *rela)
 {
@@ -70,6 +79,7 @@ kpatch_is_tls_rela(Elf64_Rela *rela)
 		ELF64_R_TYPE(rela->r_info) == R_X86_64_DTPOFF64 ||
 		ELF64_R_TYPE(rela->r_info) == R_X86_64_DTPMOD64);
 }
+#endif
 
 int
 kpatch_objinfo_load_tls_reladyn(kpatch_objinfo *oi);

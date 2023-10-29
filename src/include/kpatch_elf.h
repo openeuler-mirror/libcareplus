@@ -34,6 +34,10 @@ unsigned long vaddr2addr(struct object_file *o, unsigned long vaddr);
 
 struct kpatch_jmp_table_entry {
 	unsigned long jmp;
+#ifdef __riscv
+	/* at least 3 instructions for arbitrary +-2G access */
+	unsigned long jmp1;
+#endif
 	unsigned long addr;
 };
 
