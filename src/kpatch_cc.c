@@ -367,6 +367,10 @@ static void init(int argc_, const char **argv_)
 
 
 		switch (arg[1]) {
+		case 'I':
+			if (arg[2] == '\0')
+				i++;
+			continue;
 		case 'x':
 			if (arg[2] == '\0')
 				i++;
