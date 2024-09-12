@@ -1502,6 +1502,7 @@ static void cblock_write_func(struct kp_file *f0, struct kp_file *fout, struct c
 
 		kplog(LOG_TRACE, "cblock_write_func pair %.*s\n", b->pair->name.l, b->pair->name.s);
 		/* first put the end label, so we could refer to original function end */
+		fprintf(fout->f, "\t.text\n");
 		fprintf(fout->f, "%.*s.Lfe:\n", b->name.l, b->name.s);
 		fprintf(fout->f, "#---------- kpatch begin ---------\n");
 		write_new_function(fout, b->pair);
