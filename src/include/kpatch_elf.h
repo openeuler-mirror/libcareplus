@@ -1,6 +1,5 @@
 #ifndef __KPATCH_ELF__
 #define __KPATCH_ELF__
-
 #include <gelf.h>
 #include "kpatch_process.h"
 
@@ -36,6 +35,8 @@ struct kpatch_jmp_table_entry {
 	unsigned long jmp;
 #ifdef __riscv
 	/* at least 3 instructions for arbitrary +-2G access */
+	unsigned long jmp1;
+#elif defined (__loongarch64)
 	unsigned long jmp1;
 #endif
 	unsigned long addr;

@@ -616,7 +616,7 @@ main() {
 			exit 1
 	esac
 
-	if test "$ARCH" = "aarch64" -o "$ARCH" = "riscv64"; then
+	if test "$ARCH" = "aarch64" -o "$ARCH" = "riscv64" -o "$ARCH" = "loongarch64"; then
 		if test "$FLAVOR" = "test_patch_startup" || \
 		   test "$FLAVOR" = "test_patch_startup_ld_linux"; then
 			exit 0

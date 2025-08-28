@@ -10,7 +10,9 @@ endif
 ifeq ($(ARCH), riscv64)
 	SUBDIRS := $(filter-out $(AARCH64_NO_SUPPORT_TESTS), $(SUBDIRS))
 endif
-
+ifeq ($(ARCH), loongarch64)
+	SUBDIRS := $(filter-out $(AARCH64_NO_SUPPORT_TESTS), $(SUBDIRS))
+endif
 GCC_GE8_GENSRC_TESTS := $(patsubst gcc_ge8_gensrc/%/sub_desc,%,$(wildcard gcc_ge8_gensrc/*/sub_desc))
 
 KPATCH_PATH:=$(CURDIR)/../src

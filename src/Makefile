@@ -26,6 +26,8 @@ ifeq ($(ARCH),aarch64)
 VPATH = arch/aarch64
 else ifeq ($(ARCH),riscv64)
 VPATH = arch/riscv64
+else ifeq ($(ARCH),loongarch64)
+VPATH = arch/loongarch64
 else
 VPATH = arch/x86
 endif
