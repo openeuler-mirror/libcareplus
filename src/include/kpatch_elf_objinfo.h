@@ -71,6 +71,13 @@ kpatch_is_tls_rela(Elf64_Rela *rela)
     return (ELF64_R_TYPE(rela->r_info) == R_RISCV_TLS_TPREL32 ||
             ELF64_R_TYPE(rela->r_info) == R_RISCV_TLS_TPREL64);
 }
+#elif __loongarch64
+static inline int
+kpatch_is_tls_rela(Elf64_Rela *rela)
+{
+    return (ELF64_R_TYPE(rela->r_info) == R_LARCH_TLS_TPREL32 ||
+            ELF64_R_TYPE(rela->r_info) == R_LARCH_TLS_TPREL64);
+}
 #else
 static inline int
 kpatch_is_tls_rela(Elf64_Rela *rela)
