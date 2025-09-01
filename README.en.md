@@ -17,15 +17,15 @@ For more information about the design of LibcarePlus, see the `LibcarePlus Desig
 
 #### Installation
 
-Refer to the [LibcarePlus Intallation Guide](https://gitee.com/openeuler/docs/blob/master/docs/en/docs/Virtualization/LibcarePlus.md#installing-libcareplus) to install LibcarePlus.
+Refer to the [LibcarePlus Intallation Guide](https://gitee.com/openeuler/Virt-docs/blob/master/docs/en/virtualization_platform/virtualization/libcareplus.md#installing-libcareplus) to install LibcarePlus.
 
 
 #### User Guide
 
 Refer to:
 
-* [LibcarePlus Patch Make Tutorial](https://gitee.com/openeuler/docs/blob/master/docs/en/docs/Virtualization/LibcarePlus.md#creating-libcareplus-hot-patches)
-* [LibcarePlus Patch Apply Tutorial](https://gitee.com/openeuler/docs/blob/master/docs/en/docs/Virtualization/LibcarePlus.md#applying-the-libcareplus-hot-patch)
+* [LibcarePlus Patch Make Tutorial](https://gitee.com/openeuler/Virt-docs/blob/master/docs/en/virtualization_platform/virtualization/libcareplus.md#creating-libcareplus-hot-patches)
+* [LibcarePlus Patch Apply Tutorial](https://gitee.com/openeuler/Virt-docs/blob/master/docs/en/virtualization_platform/virtualization/libcareplus.md#applying-libcareplus-hot-patches)
 
 to help you make the patch and apply it to the target process.
 
