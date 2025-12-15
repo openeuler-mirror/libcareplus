@@ -785,7 +785,7 @@ static int match_bug_on(struct cblock *b0, const int *p0, struct cblock *b1, con
 		 */
 		s0 = cline(b0->f, *p0); s1 = cline(b1->f, *p1);
 		if (csect(b0->f, *p0) == NULL || csect(b1->f, *p1) == NULL) {
-			kpfatal("Could not find vaild section!\n");
+			kpfatal("Could not find valid section!\n");
 		}
 		if (strcmp(csect(b0->f, *p0)->name, "__bug_table") || strcmp(csect(b1->f, *p1)->name, "__bug_table"))
 		       return 0;

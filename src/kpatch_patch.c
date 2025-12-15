@@ -17,7 +17,7 @@
  * 2021.10.08 - process_unpatch: adapt return value
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
- * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * 2021.10.07 - kpatch_object: combine functions with similar function
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
  * 2021.10.07 - time: add frozen time count for patch/unpatch

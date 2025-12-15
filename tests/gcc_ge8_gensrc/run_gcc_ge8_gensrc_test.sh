@@ -1,4 +1,4 @@
-#/bin/sh
+#!/bin/sh
 
 echo "the following case only for gcc $2 and later:"
 

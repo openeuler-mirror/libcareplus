@@ -11,7 +11,7 @@
  * 2021.10.08 - ptrace/process/patch: fix some bad code problem
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
- * 2021.10.07 - kpatch_object: combine funcitons with similar function
+ * 2021.10.07 - kpatch_object: combine functions with similar function
  * Huawei Technologies Co., Ltd. <yubihong@huawei.com>
  *
  * 2021.10.07 - process: add some checks before patching
