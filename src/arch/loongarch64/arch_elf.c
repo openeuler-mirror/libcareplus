@@ -198,7 +198,7 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
         case R_LARCH_GOT_PC_HI20:
         case R_LARCH_TLS_IE_PC_HI20:
             int32_t imm_pc_hi20 = (((int64_t)val & ~0xFFF) - ((uint64_t)loc2 & ~0xFFF)) >> 12;
-            *(uint32_t *)loc = set_pcrel_imm(*(uint32_t *)loc, imm_pc_hi20);
+            *(uint32_t *)loc = set_utype_imm(*(uint32_t *)loc, imm_pc_hi20);
             break;
         case R_LARCH_GOT_PC_LO12:
         case R_LARCH_TLS_IE_PC_LO12:

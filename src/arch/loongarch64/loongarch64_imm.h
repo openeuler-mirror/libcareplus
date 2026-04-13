@@ -53,6 +53,13 @@ static inline uint32_t set_i26_imm(uint32_t ins, int32_t offset)
     return (ins & LOONG_MASK_I26) | imm_lo | imm_hi;
 }
 
+/* U-type */
+static inline uint32_t set_utype_imm(uint32_t ins, uint32_t imm)
+{
+    /* imm 直接写入 */
+    return (ins & LOONG_MASK_PCREL_UTYPE) | ((imm & 0xFFFFFu) << 5);
+}
+
 /* PCREL */
 static inline uint32_t set_pcrel_imm(uint32_t ins, uint32_t imm)
 {
