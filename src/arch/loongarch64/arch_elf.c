@@ -202,6 +202,7 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
             break;
         case R_LARCH_GOT_PC_LO12:
         case R_LARCH_TLS_IE_PC_LO12:
+            val += 0x10; // 将jumptable表项，转为 GOT 表项
             int32_t imm_pc_lo12 = (int64_t)val & 0xFFF;
             *(uint32_t *)loc = set_2ri12_imm(*(uint32_t *)loc, imm_pc_lo12);
             break;
