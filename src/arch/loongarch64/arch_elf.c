@@ -157,7 +157,8 @@ int kpatch_arch_apply_relocate_add(struct object_file *o, GElf_Shdr *relsec)
                 kperr("R_LARCH_B16 requires 4-byte alignment\n");
                 return -1;
             }
-            *(uint32_t *)loc = set_2ri16_imm(*(uint32_t *)loc, (int32_t)off_b16);
+            /* R_LARCH_B16 encodes bits [17:2], so shift the byte offset by 2. */
+            *(uint32_t *)loc = set_2ri16_imm(*(uint32_t *)loc, (int32_t)(off_b16 >> 2));
             break;
         case R_LARCH_B21:
             int64_t off_b21 = (int64_t)(val - (uint64_t)loc2);
